@@ -89,6 +89,7 @@ If you like this project, please support us by buying Marginally Clever products
         </configuration>
       </plugin>
       <plugin>
+          <!-- see http://stackoverflow.com/a/574650  -->
           <artifactId>maven-assembly-plugin</artifactId>
         <configuration>
           <archive>
