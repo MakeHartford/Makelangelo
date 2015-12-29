@@ -10,17 +10,17 @@ import java.io.Serializable;
 
 import javax.swing.Box;
 import javax.swing.JButton;
-import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 
+import com.marginallyclever.drawingtools.DrawingTool;
 import com.marginallyclever.makelangelo.Makelangelo;
 import com.marginallyclever.makelangelo.MakelangeloRobot;
-import com.marginallyclever.makelangelo.MultilingualSupport;
+import com.marginallyclever.makelangelo.Translator;
 
 /**
- * Controls related to configuring a makelangelo machine
+ * Controls related to configuring a Makelangelo machine
  *
  * @author danroyer
  * @since 7.1.4
@@ -34,32 +34,28 @@ implements ActionListener {
    */
   private static final long serialVersionUID = 1L;
 
-  protected MultilingualSupport translator;
-  protected MakelangeloRobot machineConfiguration;
+  protected Translator translator;
+  protected MakelangeloRobot robot;
   protected Makelangelo gui;
 
   protected JTabbedPane panes;
   protected JButton save, cancel;
-
-  // Make these emulate Repetier-host config dialog
-  private String[] machineConfigurations;
-  private JComboBox<String> machineChoices;
   
   protected PanelAdjustMachineSize panelAdjustMachineSize;
   protected PanelJogMotors panelJogMotors;
-  protected PanelAdjustTools panelAdjustTools;
-  protected PanelSelectTool panelSelectTool;
-  protected PanelRegister panelRegister;
+  protected DrawingTool panelAdjustPen;
+  //protected PanelAdjustTools panelAdjustTools;
+  //protected PanelSelectTool panelSelectTool;
   
   protected int dialogWidth = 450;
   protected int dialogHeight = 500;
   
-  public MakelangeloSettingsDialog(Makelangelo _gui, MultilingualSupport _translator, MakelangeloRobot _machineConfiguration) {
-	super(_gui.getParentFrame(),_translator.get("configureMachine"),true);
+  public MakelangeloSettingsDialog(Makelangelo gui, Translator translator, MakelangeloRobot robot) {
+	super(gui.getParentFrame(),translator.get("configureMachine"),true);
 
-	translator = _translator;
-	gui = _gui;
-	machineConfiguration = _machineConfiguration;
+	this.translator = translator;
+	this.gui = gui;
+	this.robot = robot;
   }
 
   
@@ -67,17 +63,17 @@ implements ActionListener {
   public void run() {
     panes = new JTabbedPane();
     
-    panelAdjustMachineSize = new PanelAdjustMachineSize(gui,translator,machineConfiguration);
-    panelJogMotors = new PanelJogMotors(gui,translator,machineConfiguration);
-    panelAdjustTools = new PanelAdjustTools(gui,translator,machineConfiguration);
-    panelSelectTool = new PanelSelectTool(gui,translator,machineConfiguration);
-    panelRegister = new PanelRegister(gui,translator,machineConfiguration);
+    panelAdjustMachineSize = new PanelAdjustMachineSize(translator,robot);
+    panelJogMotors = new PanelJogMotors(gui,translator,robot);
+    panelAdjustPen = robot.settings.getTool(0);
+    //panelAdjustTools = new PanelAdjustTools(gui,translator,robot);
+    //panelSelectTool = new PanelSelectTool(gui,translator,robot);
     
     panes.addTab(translator.get("MenuSettingsMachine"),panelAdjustMachineSize);
     panes.addTab(translator.get("JogMotors"),panelJogMotors);
-    panes.addTab(translator.get("MenuAdjustTool"),panelAdjustTools);
-    panes.addTab(translator.get("MenuSelectTool"),panelSelectTool);
-    panes.addTab(translator.get("MenuSettingsRegister"),panelRegister);
+    panes.addTab(translator.get("MenuAdjustTool"),panelAdjustPen.getPanel());
+    //panes.addTab(translator.get("MenuAdjustTool"),panelAdjustTools);
+    //panes.addTab(translator.get("MenuSelectTool"),panelSelectTool);
     
 	this.setLayout(new GridBagLayout());
     GridBagConstraints d = new GridBagConstraints();
@@ -128,8 +124,9 @@ implements ActionListener {
 	  
 	  if(src == save) {
 		  panelAdjustMachineSize.save();
-		  panelAdjustTools.save();
-		  panelSelectTool.save();
+		  panelAdjustPen.save();
+		  //panelAdjustTools.save();
+		  //panelSelectTool.save();
 		  this.dispose();
 	  }
 	  if(src == cancel) {

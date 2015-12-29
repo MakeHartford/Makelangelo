@@ -10,8 +10,8 @@ import javax.swing.SwingWorker;
 
 import com.marginallyclever.drawingtools.DrawingTool;
 import com.marginallyclever.makelangelo.Makelangelo;
-import com.marginallyclever.makelangelo.MakelangeloRobot;
-import com.marginallyclever.makelangelo.MultilingualSupport;
+import com.marginallyclever.makelangelo.MakelangeloRobotSettings;
+import com.marginallyclever.makelangelo.Translator;
 
 
 /**
@@ -27,21 +27,21 @@ public abstract class ImageManipulator {
   // file properties
   protected String dest;
   // pen position optimizing
-  protected boolean lastup;
+  protected boolean lastUp;
   protected float previousX, previousY;
   // threading
   protected ProgressMonitor pm;
   protected SwingWorker<Void, Void> parent;
 
   protected Makelangelo mainGUI;
-  protected MultilingualSupport translator;
-  protected MakelangeloRobot machine;
+  protected Translator translator;
+  protected MakelangeloRobotSettings machine;
 
   protected float sampleValue;
   protected float sampleSum;
 
   
-  public ImageManipulator(Makelangelo gui, MakelangeloRobot mc, MultilingualSupport ms) {
+  public ImageManipulator(Makelangelo gui, MakelangeloRobotSettings mc, Translator ms) {
     mainGUI = gui;
     translator = ms;
     machine = mc;
@@ -86,13 +86,13 @@ public abstract class ImageManipulator {
 
   protected void liftPen(Writer out) throws IOException {
     tool.writeOff(out);
-    lastup = true;
+    lastUp = true;
   }
 
 
   protected void lowerPen(Writer out) throws IOException {
     tool.writeOn(out);
-    lastup = false;
+    lastUp = false;
   }
 
   protected void setAbsoluteMode(Writer out) throws IOException {
@@ -153,7 +153,7 @@ public abstract class ImageManipulator {
     float x2 = TX(x);
     float y2 = TY(y);
 
-    if (up == lastup) {
+    if (up == lastUp) {
       previousX = x2;
       previousY = y2;
     } else {
@@ -166,8 +166,11 @@ public abstract class ImageManipulator {
 
   protected void moveToPaper(Writer out, double x, double y, boolean up) throws IOException {
     tool.writeMoveTo(out, (float) x, (float) y);
-    if (up) liftPen(out);
-    else lowerPen(out);
+    if(lastUp != up) {
+	    if (up) liftPen(out);
+	    else lowerPen(out);
+	    lastUp = up;
+    }
   }
 }
 

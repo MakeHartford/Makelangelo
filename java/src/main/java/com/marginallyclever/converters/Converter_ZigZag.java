@@ -8,15 +8,14 @@ import java.text.DecimalFormat;
 import java.util.concurrent.locks.ReentrantLock;
 
 import com.jogamp.opengl.GL2;
-import com.marginallyclever.basictypes.ImageConverter;
 import com.marginallyclever.basictypes.Point2D;
 import com.marginallyclever.filters.Filter_BlackAndWhite;
 import com.marginallyclever.filters.Filter_DitherFloydSteinberg;
 import com.marginallyclever.filters.Filter_Resize;
 import com.marginallyclever.makelangelo.DrawPanelDecorator;
-import com.marginallyclever.makelangelo.MakelangeloRobot;
+import com.marginallyclever.makelangelo.MakelangeloRobotSettings;
 import com.marginallyclever.makelangelo.Makelangelo;
-import com.marginallyclever.makelangelo.MultilingualSupport;
+import com.marginallyclever.makelangelo.Translator;
 
 
 /**
@@ -44,7 +43,7 @@ public class Converter_ZigZag extends ImageConverter implements DrawPanelDecorat
   int scount;
 
 
-  public Converter_ZigZag(Makelangelo gui, MakelangeloRobot mc, MultilingualSupport ms) {
+  public Converter_ZigZag(Makelangelo gui, MakelangeloRobotSettings mc, Translator ms) {
     super(gui, mc, ms);
   }
 
@@ -144,7 +143,7 @@ public class Converter_ZigZag extends ImageConverter implements DrawPanelDecorat
   }
 
 
-  public void render(GL2 gl2, MakelangeloRobot machine) {
+  public void render(GL2 gl2, MakelangeloRobotSettings machine) {
     if (points == null || solution == null) return;
 
     while (lock.isLocked()) ;
@@ -341,10 +340,8 @@ public class Converter_ZigZag extends ImageConverter implements DrawPanelDecorat
    * @param img the image to convert.
    */
   public boolean convert(BufferedImage img,Writer out) throws IOException {
-    mainGUI.getDrawPanel().setDecorator(this);
-
     // resize & flip as needed
-    // TODO just a note that changing 250/250 here changes the number of dots a lot.
+    // Note that changing 250/250 here changes the number of dots a lot.
     Filter_Resize rs = new Filter_Resize(mainGUI, machine, translator, 250, 250);
     img = rs.filter(img);
 
@@ -361,7 +358,6 @@ public class Converter_ZigZag extends ImageConverter implements DrawPanelDecorat
     // Shorten the line that connects the dots
     generateTSP(out);
 
-    mainGUI.getDrawPanel().setDecorator(null);
     return true;
   }
 }

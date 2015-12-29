@@ -70,12 +70,17 @@
 		<value>Paper Size</value>
 		<hint>machine size control panel</hint>
 	</string>
-	
 	<string>
 		<key>AdjustPulleySize</key>
 		<value>Pulley diameter</value>
 		<hint>machine size control panel</hint>
 	</string>
+	<string>
+		<key>AdjustAcceleration</key>
+		<value>Acceleration</value>
+		<hint>machine size control panel</hint>
+	</string>
+	
 	<string>
 		<key>Left</key>
 		<value>Left</value>
@@ -383,7 +388,7 @@
 
 	<string>
 		<key>JogMotors</key>
-		<value>Jog Motors</value>
+		<value>Motors</value>
 		<hint>menu or dialog title</hint>
 	</string>
 	<string>
@@ -510,7 +515,7 @@ to check yourself.</value>
 	</string>
 	<string>
 		<key>MenuAdjustTool</key>
-		<value>Tools</value>
+		<value>Pen</value>
 		<hint>menu or dialog title</hint>
 	</string>
 
@@ -553,7 +558,7 @@ to check yourself.</value>
 
 	<string>
 		<key>MenuPreview</key>
-		<value>Preview</value>
+		<value>View</value>
 		<hint>menu or dialog title</hint>
 	</string>
 	<string>
@@ -604,7 +609,7 @@ to check yourself.</value>
 	</string>
 	<string>
 		<key>penToolLiftSpeed</key>
-		<value>Lift speed</value>
+		<value>Lift delay</value>
 		<hint>Adjust pen tool</hint>
 	</string>
 	<string>
@@ -700,6 +705,21 @@ to check yourself.</value>
 		<key>HilbertCurveOrder</key>
 		<value>Order</value>
 		<hint>Hilbert Curve generator</hint>
+	</string>
+	<string>
+		<key>MazeName</key>
+		<value>Maze</value>
+		<hint>Maze generator</hint>
+	</string>
+	<string>
+		<key>MazeRows</key>
+		<value>Rows</value>
+		<hint>Maze generator</hint>
+	</string>
+	<string>
+		<key>MazeColumns</key>
+		<value>Columns</value>
+		<hint>Maze generator</hint>
 	</string>
 
 	<string>

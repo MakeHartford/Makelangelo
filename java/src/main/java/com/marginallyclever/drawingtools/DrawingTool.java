@@ -5,10 +5,11 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.prefs.Preferences;
 
+import javax.swing.JPanel;
+
 import com.jogamp.opengl.GL2;
 import com.marginallyclever.makelangelo.MakelangeloRobot;
-import com.marginallyclever.makelangelo.Makelangelo;
-import com.marginallyclever.makelangelo.MultilingualSupport;
+import com.marginallyclever.makelangelo.Translator;
 
 
 public abstract class DrawingTool {
@@ -25,15 +26,13 @@ public abstract class DrawingTool {
   // used while drawing to the GUI
   protected float draw_z = 0;
 
-  protected Makelangelo mainGUI;
-  protected MultilingualSupport translator;
-  protected MakelangeloRobot machine;
+  protected Translator translator;
+  protected MakelangeloRobot robot;
 
 
-  public DrawingTool(Makelangelo gui, MultilingualSupport ms, MakelangeloRobot mc) {
-    mainGUI = gui;
+  public DrawingTool(Translator ms, MakelangeloRobot robot) {
     translator = ms;
-    machine = mc;
+    this.robot = robot;
     diameter = 1;
   }
 
@@ -45,8 +44,10 @@ public abstract class DrawingTool {
     return zOff;
   }
 
-  // Load a configure menu and let people adjust the tool settings
-  public void adjust() {}
+  // load a configure menu and return it to the caller for embedding.
+  public JPanel getPanel() {
+	  return null;
+  }
 
   public void setDiameter(float d) {
     diameter = d;
@@ -66,19 +67,20 @@ public abstract class DrawingTool {
 
   public void writeChangeTo(Writer out) throws IOException {
     out.write("M06 T" + toolNumber + ";\n");
+    out.write("G00 F" + getFeedRate() + " A"+ robot.settings.getAcceleration() + ";\n");
   }
 
+  // lower the pen.
   public void writeOn(Writer out) throws IOException {
-    out.write("G00 Z" + zOn + " F" + zRate + ";\n");  // lower the pen.
-    out.write("G04 P50;\n");
-    out.write("G00 F" + getFeedRate() + ";\n");
+    out.write("G00 Z" + zOn + ";\n");
+    out.write("G04 P" + zRate + ";\n");
     drawZ(zOn);
   }
 
+  // lift the pen.
   public void writeOff(Writer out) throws IOException {
-    out.write("G00 Z" + zOff + " F" + zRate + ";\n");  // lift the pen.
-    out.write("G04 P50;\n");
-    out.write("G00 F" + getFeedRate() + ";\n");
+    out.write("G00 Z" + zOff + ";\n");
+    out.write("G04 P" + zRate + ";\n");
     drawZ(zOff);
   }
 
@@ -129,4 +131,6 @@ public abstract class DrawingTool {
     prefs.put("tool_number", Integer.toString(toolNumber));
     prefs.put("feed_rate", Float.toString(feedRate));
   }
+  
+  public void save() {}
 }

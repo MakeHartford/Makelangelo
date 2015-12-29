@@ -33,10 +33,13 @@ import java.io.Writer;
 import java.net.HttpURLConnection;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.InvalidPreferencesFormatException;
@@ -77,11 +80,11 @@ import org.slf4j.LoggerFactory;
 import com.marginallyclever.communications.MarginallyCleverConnection;
 import com.marginallyclever.communications.MarginallyCleverConnectionManager;
 import com.marginallyclever.communications.SerialConnectionManager;
+import com.marginallyclever.makelangelo.settings.MakelangeloSettingsDialog;
 
 
-// TODO while not drawing, in-app gcode editing with immediate visual feedback ?
-// TODO image processing options - cutoff, exposure, resolution, edge tracing ?
-// TODO filters > vector output, vector output > gcode.
+// TODO while not drawing, in-app gcode editing with immediate visual feedback ? edge tracing ?
+// TODO filters -> vectors, vector <-> gcode.
 
 /**
  * @author danroyer
@@ -89,7 +92,7 @@ import com.marginallyclever.communications.SerialConnectionManager;
  * @since 0.0.1?
  */
 public final class Makelangelo
-implements ActionListener {
+implements ActionListener, MakelangeloRobotListener, MakelangeloRobotSettingsListener {
 	static final long serialVersionUID = 1L;
 
 	/**
@@ -103,10 +106,14 @@ implements ActionListener {
 	private Preferences prefs = PreferencesHelper.getPreferenceNode(PreferencesHelper.MakelangeloPreferenceKey.LEGACY_MAKELANGELO_ROOT);
 
 	private MarginallyCleverConnectionManager connectionManager;
-	private MarginallyCleverConnection connectionToRobot = null;
-
+	private MakelangeloRobot robot;
+	public GCodeFile gCode;
+	
+	private Translator translator;
+	
 	// GUI elements
-	private JFrame mainframe;
+	private JFrame mainframe = null;
+	// Top of window
 	private JMenuBar menuBar;
 	private JMenuItem buttonExit;
 	private JMenuItem buttonAdjustSounds, buttonAdjustGraphics, buttonAdjustLanguage, buttonExportMachinePreferences, buttonImportMachinePreferences, buttonResetMachinePreferences;
@@ -114,37 +121,29 @@ implements ActionListener {
 	private JMenuItem buttonZoomIn, buttonZoomOut, buttonZoomToFit;
 	private JMenuItem buttonAbout, buttonCheckForUpdate;
 
-	private JMenuItem[] buttonPorts;
-
-	// logging
-	private PanelLog logPanel;
 	/**
-	 * @see org.slf4j.Logger
+	 * buttons that represent connections to real robots attached to the computer.
 	 */
-	private final Logger logger = LoggerFactory.getLogger(Makelangelo.class);
-	/**
-	 * <b>Seriously</b> consider not having this as a member variable and using try with resources statement.
-	 */
-	private Writer logToFile;
+	private JMenuItem[] buttonConnections;
 	
 	// main window layout
 	private Splitter splitLeftRight;
-	// opengl window
+	// OpenGL window
 	private DrawPanel drawPanel;
-	// context sensitive menu
+	// Context sensitive menu
 	private JTabbedPane contextMenu;
-	// menu tabs
+	// Menu tabs
 	private PanelPrepareImage prepareImage;
 	private MakelangeloDriveControls driveControls;
+	private PanelLog logPanel;
+	// Bottom of window
 	public StatusBar statusBar;
 
-	// reading file
-	private boolean isRunning = false;
-	private boolean isPaused = true;
-	public GCodeFile gCode = new GCodeFile();
-
-	private MakelangeloRobot machineConfiguration;
-	private MultilingualSupport translator;
+	/**
+	 * logging
+	 * @see org.slf4j.Logger
+	 */
+	private final Logger logger = LoggerFactory.getLogger(Makelangelo.class);
 
 
 	public static void main(String[] argv) {
@@ -161,30 +160,54 @@ implements ActionListener {
 	public Makelangelo() {
 		startLog();
 		startTranslator();
-		machineConfiguration = new MakelangeloRobot(this, translator);
-		connectionManager = new SerialConnectionManager(prefs, this, translator, machineConfiguration);
+		gCode = new GCodeFile();
+		robot = new MakelangeloRobot(translator);
+		robot.addListener(this);
+		robot.settings.addListener(this);
+		connectionManager = new SerialConnectionManager(prefs);
 		createAndShowGUI();
 	}
 
 
 
 	public void startLog() {
-		try (final Writer fileWriter = new FileWriter("log.html")) {
-			logToFile = new PrintWriter(fileWriter);
-			Calendar cal = Calendar.getInstance();
-			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-			logToFile.write("<h3>" + sdf.format(cal.getTime()) + "</h3>\n");
+		Path p = FileSystems.getDefault().getPath("log.html");
+		try {
+			Files.deleteIfExists(p);
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		
+		// print starting time
+		Calendar cal = Calendar.getInstance();
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		log("<h3>" + sdf.format(cal.getTime()) + "</h3>\n");
+	}
+
+
+	// appends a message to the log tab and system out.
+	public void log(String msg) {
+		try (Writer fileWriter = new FileWriter("log.html", true)) {
+			PrintWriter logToFile = new PrintWriter(fileWriter);
+			logToFile.write(msg);
+			logToFile.flush();
 		} catch (IOException e) {
 			logger.error("{}", e);
 		}
+		
+		if(logPanel!=null) {
+			logPanel.log(msg);
+		}		
 	}
 
-	public void endLog() {
-		IOUtils.closeQuietly(logToFile);
+	public void clearLog() {
+		logPanel.clearLog();
 	}
 	
+	
 	public void startTranslator() {
-		translator = new MultilingualSupport();
+		translator = new Translator();
 		if (translator.isThisTheFirstTimeLoadingLanguageFiles()) {
 			chooseLanguage();
 		}
@@ -192,66 +215,38 @@ implements ActionListener {
 
 	// display a dialog box of available languages and let the user select their preference.
 	public void chooseLanguage() {
-		final JDialog driver = new JDialog(this.mainframe, "Language", true);
-		driver.setLayout(new GridBagLayout());
+		JPanel panel = new JPanel(new GridBagLayout());
 
 		final String[] languageList = translator.getLanguageList();
 		final JComboBox<String> languageOptions = new JComboBox<>(languageList);
-		final JButton save = new JButton(">>>");
+		int currentIndex = translator.getCurrentLanguageIndex();
+		languageOptions.setSelectedIndex(currentIndex);
 
 		GridBagConstraints c = new GridBagConstraints();
 		c.anchor = GridBagConstraints.WEST;
 		c.gridwidth = 2;
 		c.gridx = 0;
 		c.gridy = 0;
-		driver.add(languageOptions, c);
-		c.anchor = GridBagConstraints.EAST;
-		c.gridwidth = 1;
-		c.gridx = 2;
-		c.gridy = 0;
-		driver.add(save, c);
+		panel.add(languageOptions, c);
 
-		ActionListener driveButtons = new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				Object subject = e.getSource();
-				// TODO prevent "close" icon.  Must press save to continue!
-				if (subject == save) {
-					translator.setCurrentLanguage(languageList[languageOptions.getSelectedIndex()]);
-					translator.saveConfig();
-					driver.dispose();
-				}
-			}
-		};
-
-		save.addActionListener(driveButtons);
-
-		driver.pack();
-		driver.setVisible(true);
+		int result;
+		do {
+			result = JOptionPane.showConfirmDialog(this.mainframe, panel, "Language", JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE);
+		} while(result != JOptionPane.OK_OPTION);
+		
+		translator.setCurrentLanguage(languageList[languageOptions.getSelectedIndex()]);
+		translator.saveConfig();
 	}
 
 
 	public void raisePen() {
-		sendLineToRobot("G00 Z" + machineConfiguration.getPenUpString());
+		sendLineToRobot("G00 Z" + robot.settings.getPenUpString());
 		prepareImage.raisePen();
 	}
 
 	public void lowerPen() {
-		sendLineToRobot("G00 Z" + machineConfiguration.getPenDownString());
+		sendLineToRobot("G00 Z" + robot.settings.getPenDownString());
 		prepareImage.lowerPen();
-	}
-
-	public boolean isRunning() {
-		return isRunning;
-	}
-
-	public boolean isPaused() {
-		return isPaused;
-	}
-
-	protected void finalize() throws Throwable {
-		//do finalization here
-		endLog();
-		super.finalize(); //not necessary if extending Object.
 	}
 
 	public void updateMachineConfig() {
@@ -259,10 +254,6 @@ implements ActionListener {
 			drawPanel.updateMachineConfig();
 			drawPanel.zoomToFitPaper();
 		}
-	}
-
-	public ArrayList<String> getgCode() {
-		return gCode.lines;
 	}
 
 	private void playSound(String url) {
@@ -292,29 +283,8 @@ implements ActionListener {
 		playSound(prefs.get("sound_conversion_finished", ""));
 	}
 
-	private void playDawingFinishedSound() {
+	private void playDrawingFinishedSound() {
 		playSound(prefs.get("sound_drawing_finished", ""));
-	}
-
-
-	// appends a message to the log tab and system out.
-	public void log(String msg) {
-		if(logPanel!=null) {
-			logPanel.log(msg);
-		}
-		
-		try {
-			logToFile.write(msg);
-			logToFile.flush();
-			//logPane.getVerticalScrollBar().setValue(logPane.getVerticalScrollBar().getMaximum());
-		} catch (IOException e) {
-			logger.error("{}", e);
-		}
-		
-	}
-
-	public void clearLog() {
-		logPanel.clearLog();
 	}
 
 
@@ -322,9 +292,6 @@ implements ActionListener {
 		return System.getProperty("user.dir") + "/temp.ngc";
 	}
 
-	public boolean isFileLoaded() {
-		return (gCode.fileOpened && gCode.lines != null && gCode.lines.size() > 0);
-	}
 
 	private String selectFile() {
 		JFileChooser choose = new JFileChooser();
@@ -430,7 +397,7 @@ implements ActionListener {
 					prefs.put("sound_disconnect", sound_disconnect.getText());
 					prefs.put("sound_conversion_finished", sound_conversion_finished.getText());
 					prefs.put("sound_drawing_finished", sound_drawing_finished.getText());
-					machineConfiguration.saveConfig();
+					robot.settings.saveConfig();
 					driver.dispose();
 				}
 				if (subject == cancel) {
@@ -531,57 +498,46 @@ implements ActionListener {
 
 
 	/**
-	 * Send the machine configuration to the robot
-	 */
-	public void sendConfig() {
-		if (connectionToRobot != null && !connectionToRobot.isRobotConfirmed()) return;
-
-		// Send a command to the robot with new configuration values
-		sendLineToRobot(machineConfiguration.getConfigLine() + "\n");
-		sendLineToRobot(machineConfiguration.getBobbinLine() + "\n");
-		sendLineToRobot("G92 X0 Y0\n");
-	}
-
-
-	/**
 	 * Take the next line from the file and send it to the robot, if permitted.
 	 */
 	public void sendFileCommand() {
-		if (isRunning == false || isPaused == true || gCode.fileOpened == false ||
-				(connectionToRobot != null && connectionToRobot.isRobotConfirmed() == false) || gCode.linesProcessed >= gCode.linesTotal)
+		if (robot.isRunning() == false 
+				|| robot.isPaused() == true 
+				|| gCode.isFileOpened() == false 
+				|| (robot.getConnection() != null && robot.isPortConfirmed() == false) )
 			return;
 
 		String line;
 		do {
 			// are there any more commands?
-			// TODO: find out how far the pen moved each line and add it to the distance total.
-			int line_number = gCode.linesProcessed;
-			gCode.linesProcessed++;
-			line = gCode.lines.get(line_number).trim();
+			if( gCode.moreLinesAvailable() == false ) break;
+			
+			int lineNumber = gCode.getLinesProcessed();
+			line = gCode.nextLine();
 
 			// catch pen up/down status here
-			if (line.contains("Z" + machineConfiguration.getPenUpString())) {
+			if (line.contains("Z" + robot.settings.getPenUpString())) {
 				prepareImage.raisePen();
 			}
-			if (line.contains("Z" + machineConfiguration.getPenDownString())) {
+			if (line.contains("Z" + robot.settings.getPenDownString())) {
 				prepareImage.lowerPen();
 			}
 
 
 			if (line.length() > 3) {
-				line = "N" + line_number + " " + line;
+				line = "N" + lineNumber + " " + line;
+				line += robot.generateChecksum(line);
 			}
-			line += generateChecksum(line);
 
-			drawPanel.setLinesProcessed(gCode.linesProcessed);
-			statusBar.setProgress(gCode.linesProcessed, gCode.linesTotal);
+			drawPanel.setLinesProcessed(lineNumber);
+			statusBar.setProgress(lineNumber, gCode.getLinesTotal());
 			// loop until we find a line that gets sent to the robot, at which point we'll
 			// pause for the robot to respond.  Also stop at end of file.
-		} while (processLine(line) && gCode.linesProcessed < gCode.linesTotal);
+		} while ( tweakAndSendLine(line) );
 
-		if (gCode.linesProcessed == gCode.linesTotal) {
+		if (gCode.moreLinesAvailable() == false) {
 			// end of file
-			playDawingFinishedSound();
+			playDrawingFinishedSound();
 			halt();
 			sayHooray();
 		}
@@ -589,15 +545,11 @@ implements ActionListener {
 
 
 	private void sayHooray() {
-		long num_lines = gCode.linesProcessed;
-
 		JOptionPane.showMessageDialog(null,
 				translator.get("Finished") + " " +
-						num_lines +
-						translator.get("LineSegments") +
-						"\n" +
-						statusBar.getElapsed() +
-						"\n" +
+						gCode.getLinesProcessed() +
+						translator.get("LineSegments") + "\n" +
+						statusBar.getElapsed() + "\n" +
 						translator.get("SharePromo")
 				);
 	}
@@ -606,7 +558,7 @@ implements ActionListener {
 	private void changeToTool(String changeToolString) {
 		int i = Integer.decode(changeToolString);
 
-		String[] toolNames = machineConfiguration.getToolNames();
+		String[] toolNames = robot.settings.getToolNames();
 
 		if (i < 0 || i > toolNames.length) {
 			log("<span style='color:red'>" + translator.get("InvalidTool") + i + "</span>");
@@ -622,8 +574,8 @@ implements ActionListener {
 	 * @param line command to send
 	 * @return true if the robot is ready for another command to be sent.
 	 */
-	public boolean processLine(String line) {
-		if (connectionToRobot == null || !connectionToRobot.isRobotConfirmed() || !isRunning) return false;
+	public boolean tweakAndSendLine(String line) {
+		if (robot.getConnection() == null || !robot.isPortConfirmed() || !robot.isRunning()) return false;
 
 		// tool change request?
 		String[] tokens = line.split("(\\s|;)");
@@ -639,7 +591,7 @@ implements ActionListener {
 
 		// end of program?
 		if (Objects.equals(tokens[0], "M02") || Objects.equals(tokens[0], "M2") || Objects.equals(tokens[0], "M30")) {
-			playDawingFinishedSound();
+			playDrawingFinishedSound();
 			halt();
 			return false;
 		}
@@ -652,17 +604,6 @@ implements ActionListener {
 	}
 
 
-	protected String generateChecksum(String line) {
-		byte checksum = 0;
-
-		for (int i = 0; i < line.length(); ++i) {
-			checksum ^= line.charAt(i);
-		}
-
-		return "*" + ((int) checksum);
-	}
-
-
 	/**
 	 * Sends a single command the robot.  Could be anything.
 	 *
@@ -670,21 +611,25 @@ implements ActionListener {
 	 * @return <code>true</code> if command was sent to the robot; <code>false</code> otherwise.
 	 */
 	public boolean sendLineToRobot(String line) {
-		if (connectionToRobot == null || !connectionToRobot.isRobotConfirmed()) return false;
+		if (robot.getConnection() == null || !robot.isPortConfirmed()) return false;
 
 		if (line.trim().equals("")) return false;
 		String reportedline = line;
-		if (line.contains(";")) {
+		// does it have a checksum?  hide it in the log
+		if (reportedline.contains(";")) {
 			String[] lines = line.split(";");
 			reportedline = lines[0];
 		}
-		log("<font color='white'>" + reportedline + "</font>");
+		if(reportedline.trim().equals("")) return false;
+				
+		log("<font color='0xFFFFFF'>" + reportedline + "</font>");
 		line += "\n";
 
+		// send unmodified line
 		try {
-			connectionToRobot.sendMessage(line);
+			robot.getConnection().sendMessage(line);
 		} catch (Exception e) {
-			log(e.getMessage());
+			log("<font color='FF0000'>" + e.getMessage() + "</font>");
 			return false;
 		}
 		return true;
@@ -695,32 +640,24 @@ implements ActionListener {
 	 * TODO add an e-stop command?
 	 */
 	public void halt() {
-		isRunning = false;
-		isPaused = false;
+		robot.setRunning(false);
+		robot.unPause();
 		drawPanel.setLinesProcessed(0);
-		drawPanel.setRunning(isRunning);
+		drawPanel.setRunning(false);
 		updateMenuBar();
 	}
 
 	public void startAt(long lineNumber) {
-		gCode.linesProcessed = 0;
-		sendLineToRobot("M110 N" + gCode.linesProcessed);
-		drawPanel.setLinesProcessed(gCode.linesProcessed);
+		gCode.setLinesProcessed(0);
+		sendLineToRobot("M110 N" + gCode.getLinesProcessed());
+		drawPanel.setLinesProcessed(gCode.getLinesProcessed());
 		startDrawing();
 	}
 
-	public void pause() {
-		isPaused = true;
-	}
-
-	public void unPause() {
-		isPaused = false;
-	}
-
 	private void startDrawing() {
-		isPaused = false;
-		isRunning = true;
-		drawPanel.setRunning(isRunning);
+		robot.unPause();
+		robot.setRunning(true);
+		drawPanel.setRunning(true);
 		updateMenuBar();
 		statusBar.start();
 		sendFileCommand();
@@ -749,17 +686,7 @@ implements ActionListener {
 			return;
 		}
 		if (subject == buttonDisconnect) {
-			connectionToRobot.closeConnection();
-			connectionToRobot = null;
-			clearLog();
-			drawPanel.setConnected(false);
-			updateMenuBar();
-			playDisconnectSound();
-
-			// update window title
-			this.mainframe.setTitle(translator.get("TitlePrefix")
-					+ Long.toString(machineConfiguration.getUID())
-					+ translator.get("TitleNotConnected"));
+			disconnect();
 			return;
 		}
 		if (subject == buttonAdjustSounds) {
@@ -771,8 +698,9 @@ implements ActionListener {
 			return;
 		}
 		if (subject == buttonAdjustLanguage) {
-			translator.chooseLanguage();
+			chooseLanguage();
 			updateMenuBar();
+			return;
 		}
 		if (subject == buttonExportMachinePreferences) {
 			final JFileChooser fc = new JFileChooser();
@@ -830,24 +758,37 @@ implements ActionListener {
 
 		String[] connections = connectionManager.listConnections();
 		for (int i = 0; i < connections.length; ++i) {
-			if (subject == buttonPorts[i]) {
-
+			if (subject == buttonConnections[i]) {
+				clearLog();
 				log("<font color='green'>" + translator.get("ConnectingTo") + connections[i] + "...</font>\n");
 
-				connectionToRobot = connectionManager.openConnection(connections[i]);
-				if (connectionToRobot != null) {
+				MarginallyCleverConnection c = connectionManager.openConnection(connections[i]); 
+				if (c == null) {
+					log("<span style='color:red'>" + translator.get("PortOpenFailed") + "</span>\n");
+				} else {
+					robot.setConnection(c);
 					log("<span style='color:green'>" + translator.get("PortOpened") + "</span>\n");
 					updateMenuBar();
-					prepareImage.updateMachineNumberPanel();
 					playConnectSound();
-				} else {
-					log("<span style='color:red'>" + translator.get("PortOpenFailed") + "</span>\n");
 				}
 				return;
 			}
 		}
 	}
+	
+	private void disconnect() {
+		robot.getConnection().closeConnection();
+		robot.setConnection(null);
+		drawPanel.setConnected(false);
+		updateMenuBar();
+		playDisconnectSound();
 
+		// update window title
+		this.mainframe.setTitle(translator.get("TitlePrefix")
+				+ Long.toString(robot.settings.getUID())
+				+ translator.get("TitleNotConnected"));
+	}
+	
 	/**
 	 * @return byte array containing data for image icon.
 	 */
@@ -870,7 +811,7 @@ implements ActionListener {
 	 * <p>
 	 * <p>
 	 * The summation of {@link String#length()} for each of the respective values retrieved with the
-	 * {@code "AboutHTMLBeforeVersionNumber"}, and {@code "AboutHTMLAfterVersionNumber"} {@link MultilingualSupport} keys,
+	 * {@code "AboutHTMLBeforeVersionNumber"}, and {@code "AboutHTMLAfterVersionNumber"} {@link Translator} keys,
 	 * in conjunction with {@link Makelangelo#VERSION} is calculated for use with {@link java.lang.StringBuilder#StringBuilder(int)}.
 	 * </p>
 	 *
@@ -921,7 +862,7 @@ implements ActionListener {
 
 
 	/**
-	 * display the about dialog.
+	 * Display the about dialog.
 	 */
 	private void displayAbout() {
 		final String aboutHtml = getAboutHtmlFromMultilingualString();
@@ -934,8 +875,11 @@ implements ActionListener {
 		JOptionPane.showMessageDialog(null, bottomText, menuAboutValue, JOptionPane.INFORMATION_MESSAGE, icon);
 	}
 
+	/**
+	 * If the menu bar exists, empty it.  If it doesn't exist, create it.
+	 * @return the refreshed menu bar
+	 */
 	public JMenuBar createMenuBar() {
-		// If the menu bar exists, empty it.  If it doesn't exist, create it.
 		menuBar = new JMenuBar();
 
 		updateMenuBar();
@@ -986,19 +930,23 @@ implements ActionListener {
 		}
 	}
 
-	// Rebuild the contents of the menu based on current program state
+	/**
+	 * Rebuild the contents of the menu based on current program state
+	 */
 	public void updateMenuBar() {
 		JMenu menu, preferencesSubMenu;
 		ButtonGroup group;
 		int i;
 
-		boolean isConfirmed = connectionToRobot != null && connectionToRobot.isRobotConfirmed();
+		boolean isConfirmed = robot.getConnection() != null 
+				&& robot.getConnection().isOpen()
+				&& robot.isPortConfirmed();
 
 		if (prepareImage != null) {
-			prepareImage.updateButtonAccess(isConfirmed, isRunning);
+			prepareImage.updateButtonAccess(isConfirmed, robot.isRunning());
 		}
 		if (driveControls != null) {
-			driveControls.updateButtonAccess(isConfirmed, isRunning);
+			driveControls.updateButtonAccess(isConfirmed, robot.isRunning());
 		}
 
 
@@ -1032,19 +980,21 @@ implements ActionListener {
 
 		// Connect menu
 		preferencesSubMenu = new JMenu(translator.get("MenuConnect"));
-		preferencesSubMenu.setEnabled(!isRunning);
+		preferencesSubMenu.setEnabled(!robot.isRunning());
 		group = new ButtonGroup();
 
 		String[] connections = connectionManager.listConnections();
-		buttonPorts = new JRadioButtonMenuItem[connections.length];
+		buttonConnections = new JRadioButtonMenuItem[connections.length];
 		for (i = 0; i < connections.length; ++i) {
-			buttonPorts[i] = new JRadioButtonMenuItem(connections[i]);
-			if (connectionToRobot != null && connectionToRobot.getRecentConnection().equals(connections[i]) && connectionToRobot.isConnectionOpen()) {
-				buttonPorts[i].setSelected(true);
+			buttonConnections[i] = new JRadioButtonMenuItem(connections[i]);
+			if (robot.getConnection() != null 
+					&& robot.getConnection().isOpen() 
+					&& robot.getConnection().getRecentConnection().equals(connections[i]) ) {
+				buttonConnections[i].setSelected(true);
 			}
-			buttonPorts[i].addActionListener(this);
-			group.add(buttonPorts[i]);
-			preferencesSubMenu.add(buttonPorts[i]);
+			buttonConnections[i].addActionListener(this);
+			group.add(buttonConnections[i]);
+			preferencesSubMenu.add(buttonConnections[i]);
 		}
 
 		preferencesSubMenu.addSeparator();
@@ -1055,7 +1005,7 @@ implements ActionListener {
 
 		buttonDisconnect = new JMenuItem(translator.get("MenuDisconnect"), KeyEvent.VK_D);
 		buttonDisconnect.addActionListener(this);
-		buttonDisconnect.setEnabled(connectionToRobot != null && connectionToRobot.isConnectionOpen());
+		buttonDisconnect.setEnabled(robot.getConnection() != null && robot.getConnection().isOpen());
 		preferencesSubMenu.add(buttonDisconnect);
 
 		menuBar.add(preferencesSubMenu);
@@ -1110,18 +1060,18 @@ implements ActionListener {
 		contentPane.setOpaque(true);
 
 		logPanel = new PanelLog();
-		logPanel.createPanel(this, translator, machineConfiguration);
+		logPanel.createPanel(this, translator, robot.settings);
 		clearLog();
 
-		drawPanel = new DrawPanel(machineConfiguration);
+		drawPanel = new DrawPanel(robot.settings);
 		drawPanel.setGCode(gCode);
 
 		prepareImage = new PanelPrepareImage();
-		prepareImage.createPanel(this, translator, machineConfiguration);
+		prepareImage.createPanel(this, translator, robot);
 		prepareImage.updateButtonAccess(false, false);
 
 		driveControls = new MakelangeloDriveControls();
-		driveControls.createPanel(this, translator, machineConfiguration);
+		driveControls.createPanel(this, translator, robot.settings);
 		driveControls.updateButtonAccess(false, false);
 
 		statusBar = new StatusBar(translator);
@@ -1169,8 +1119,8 @@ implements ActionListener {
 
 		drawPanel.zoomToFitPaper();
 
-		// 2015-05-03: option is meaningless, connectionToRobot doesn't exist when software starts.
-		// if(prefs.getBoolean("Reconnect to last port on start", false)) connectionToRobot.reconnect();
+		// 2015-05-03: option is meaningless, robot.connectionToRobot doesn't exist when software starts.
+		// if(prefs.getBoolean("Reconnect to last port on start", false)) robot.connectionToRobot.reconnect();
 		if (prefs.getBoolean("Check for updates", false)) checkForUpdate();
 	}
 
@@ -1192,7 +1142,7 @@ implements ActionListener {
 	 * driveControls the <code>javax.swing.JPanel</code> representing the preview pane of this GUI.
 	 */
 	public void updatedriveControls() {
-		driveControls.createPanel(this, translator, machineConfiguration);
+		driveControls.createPanel(this, translator, robot.settings);
 	}
 
 	/**
@@ -1200,6 +1150,52 @@ implements ActionListener {
 	 */
 	public GCodeFile getGcodeFile() {
 		return gCode;
+	}
+	
+	/**
+	 * Notice received from MakelangeloRobot when serial connection is confirmed to point at something that speaks Makelangelo-firmware. 
+	 */
+	public void portConfirmed(MakelangeloRobot r) {
+		if(r.settings.getLimitBottom()==0 
+				&& r.settings.getLimitTop()==0
+				&& r.settings.getLimitLeft()==0
+				&& r.settings.getLimitRight()==0) {
+			MakelangeloSettingsDialog m = new MakelangeloSettingsDialog(this,translator,r);
+			m.run();
+		}
+		
+	    getMainframe().setTitle(translator.get("TitlePrefix")
+	        + Long.toString(this.robot.settings.getUID())
+	        + translator.get("TitlePostfix"));
+
+	    robot.sendConfig();
+	    
+	    getDrawPanel().updateMachineConfig();
+	    getDrawPanel().setConnected(true);
+
+	    prepareImage.updateMachineNumberPanel();
+	    
+	    updateMenuBar();
+
+	    // rebuild the drive pane so that the feed rates are correct.
+	    updatedriveControls();
+	}
+	
+	public void dataAvailable(MakelangeloRobot r,String data) {
+		log("<font color='#ffa500'>"+data+"</font>");
+	}
+	
+	public void connectionReady(MakelangeloRobot r) {
+		sendFileCommand();
+	}
+	
+	public void lineError(MakelangeloRobot r,int lineNumber) {
+        getGcodeFile().setLinesProcessed(lineNumber);
+        sendFileCommand();
+	}
+	
+	public void settingsChanged(MakelangeloRobotSettings settings) {
+		getDrawPanel().repaint();
 	}
 }
 

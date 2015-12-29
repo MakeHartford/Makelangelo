@@ -1,6 +1,6 @@
 package com.marginallyclever.util;
 
-import static com.marginallyclever.makelangelo.MultilingualSupport.WORKING_DIRECTORY;
+import static com.marginallyclever.makelangelo.Translator.WORKING_DIRECTORY;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -49,7 +49,7 @@ public final class MarginallyCleverTranslationXmlFileHelper {
   /**
    * Languages folder location relative to the user's working directory.
    */
-  private static final String LANGUAGES_FOLDER_LOCATION = "languages";
+  private static final String LANGUAGES_FOLDER_LOCATION = /*File.separator +*/ "languages";
 
   /**
    * The default language file.
@@ -198,7 +198,13 @@ public final class MarginallyCleverTranslationXmlFileHelper {
    */
   private static URL getLanguagesFolderUrl() {
     URL languagesFolderUrl = getLanguagesFolderUrlRelativeToClasspath();
-    final URL languageFolderUsingUserDirectory = getLanguagesFolderUrlFromUserDirectory();
+    if( languagesFolderUrl!=null ) {
+    	log.debug("languages relative to classpath: "+languagesFolderUrl.toString());
+    }
+    URL languageFolderUsingUserDirectory = getLanguagesFolderUrlFromUserDirectory();
+    if( languageFolderUsingUserDirectory!=null ) {
+    	log.debug("languages via user directory: "+languageFolderUsingUserDirectory.toString());
+    }
     if (languagesFolderUrl == null) {
       languagesFolderUrl = languageFolderUsingUserDirectory;
     }
@@ -207,12 +213,13 @@ public final class MarginallyCleverTranslationXmlFileHelper {
 
   /**
    * @return url object representing the language folder in the user's working directory.
-   * @see com.marginallyclever.makelangelo.MultilingualSupport#WORKING_DIRECTORY
+   * @see com.marginallyclever.makelangelo.Translator#WORKING_DIRECTORY
    */
   private static URL getLanguagesFolderUrlFromUserDirectory() {
     URL languageFolderUsingUserDirectoryUrl = null;
     try {
-      languageFolderUsingUserDirectoryUrl = new URL("file", null, WORKING_DIRECTORY);
+    	File f = new File(WORKING_DIRECTORY);
+      languageFolderUsingUserDirectoryUrl = f.toURI().toURL();
     } catch (MalformedURLException e) {
       log.error("{}", e);
     }

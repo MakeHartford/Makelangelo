@@ -16,34 +16,24 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 
-import com.marginallyclever.basictypes.ImageGenerator;
-import com.marginallyclever.makelangelo.MakelangeloRobot;
+import com.marginallyclever.makelangelo.MakelangeloRobotSettings;
 import com.marginallyclever.makelangelo.Makelangelo;
-import com.marginallyclever.makelangelo.MultilingualSupport;
+import com.marginallyclever.makelangelo.Translator;
 
 public class Generator_Dragon extends ImageGenerator {
-	float turtleDx, turtleDy;
-	float xmax = 7;
-	float xmin = -7;
-	float ymax = 7;
-	float ymin = -7;
-	float toolOffsetZ = 1.25f;
-	float zDown = 40;
-	float zUp = 90;
-	int order = 12; // controls complexity of curve
-	float x, y;
+	private float turtleDx, turtleDy;
+	private float xmax = 7;
+	private float xmin = -7;
+	private float ymax = 7;
+	private float ymin = -7;
+	private int order = 12; // controls complexity of curve
+	private float x, y;
 
-	float maxSize;
-
-	float angleSpan = 120;
-	int numBranches = 3;
-	float orderScale = 0.76f;
-
-	List<Integer> sequence;
+	private List<Integer> sequence;
 
 	
-	public Generator_Dragon(Makelangelo gui, MakelangeloRobot mc,
-			MultilingualSupport ms) {
+	public Generator_Dragon(Makelangelo gui, MakelangeloRobotSettings mc,
+			Translator ms) {
 		super(gui, mc, ms);
 	}
 
@@ -58,10 +48,10 @@ public class Generator_Dragon extends ImageGenerator {
 	@Override
 	protected void moveTo(Writer out, float x, float y, boolean up) throws IOException {
 		tool.writeMoveTo(out, TX(x), TY(y));
-		if (lastup != up) {
+		if (lastUp != up) {
 			if (up) liftPen(out);
 			else lowerPen(out);
-			lastup = up;
+			lastUp = up;
 		}
 	}
 
@@ -112,9 +102,6 @@ public class Generator_Dragon extends ImageGenerator {
 			ymax = v;
 			xmin = -v;
 			ymin = -v;
-			float xx = xmax - xmin;
-			float yy = ymax - ymin;
-			maxSize = xx > yy ? xx : yy;
 
 			turtleDx = 0;
 			turtleDy = -1;

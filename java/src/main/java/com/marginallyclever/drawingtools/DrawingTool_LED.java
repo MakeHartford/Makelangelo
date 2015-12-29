@@ -4,13 +4,12 @@ import java.io.IOException;
 import java.io.Writer;
 
 import com.marginallyclever.makelangelo.MakelangeloRobot;
-import com.marginallyclever.makelangelo.Makelangelo;
-import com.marginallyclever.makelangelo.MultilingualSupport;
+import com.marginallyclever.makelangelo.Translator;
 
 
 public class DrawingTool_LED extends DrawingTool {
-  public DrawingTool_LED(Makelangelo gui, MultilingualSupport ms, MakelangeloRobot mc) {
-    super(gui, ms, mc);
+  public DrawingTool_LED(Translator ms, MakelangeloRobot robot) {
+    super(ms, robot);
 
     diameter = 4;
     name = "LED";

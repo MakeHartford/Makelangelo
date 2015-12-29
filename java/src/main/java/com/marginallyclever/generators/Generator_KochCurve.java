@@ -13,10 +13,9 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 
-import com.marginallyclever.basictypes.ImageGenerator;
-import com.marginallyclever.makelangelo.MakelangeloRobot;
+import com.marginallyclever.makelangelo.MakelangeloRobotSettings;
 import com.marginallyclever.makelangelo.Makelangelo;
-import com.marginallyclever.makelangelo.MultilingualSupport;
+import com.marginallyclever.makelangelo.Translator;
 
 public class Generator_KochCurve extends ImageGenerator {
 	float turtleX, turtleY;
@@ -34,8 +33,8 @@ public class Generator_KochCurve extends ImageGenerator {
 
 	float maxSize;
 
-	public Generator_KochCurve(Makelangelo gui, MakelangeloRobot mc,
-			MultilingualSupport ms) {
+	public Generator_KochCurve(Makelangelo gui, MakelangeloRobotSettings mc,
+			Translator ms) {
 		super(gui, mc, ms);
 	}
 
@@ -50,10 +49,10 @@ public class Generator_KochCurve extends ImageGenerator {
 	@Override
 	protected void moveTo(Writer out, float x, float y, boolean up) throws IOException {
 		tool.writeMoveTo(out, TX(x), TY(y));
-		if (lastup != up) {
+		if (lastUp != up) {
 			if (up) liftPen(out);
 			else lowerPen(out);
-			lastup = up;
+			lastUp = up;
 		}
 	}
 

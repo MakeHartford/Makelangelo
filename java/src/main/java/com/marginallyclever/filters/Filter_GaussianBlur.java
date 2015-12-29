@@ -7,10 +7,9 @@ import java.io.IOException;
 import javax.imageio.ImageIO;
 
 import com.marginallyclever.basictypes.C3;
-import com.marginallyclever.basictypes.ImageFilter;
-import com.marginallyclever.makelangelo.MakelangeloRobot;
+import com.marginallyclever.makelangelo.MakelangeloRobotSettings;
 import com.marginallyclever.makelangelo.Makelangelo;
-import com.marginallyclever.makelangelo.MultilingualSupport;
+import com.marginallyclever.makelangelo.Translator;
 
 
 /**
@@ -23,7 +22,7 @@ public class Filter_GaussianBlur extends ImageFilter {
 
 
   public Filter_GaussianBlur(Makelangelo gui,
-                             MakelangeloRobot mc, MultilingualSupport ms, int _radius) {
+                             MakelangeloRobotSettings mc, Translator ms, int _radius) {
     super(gui, mc, ms);
     assert (radius > 0);
     radius = _radius;
@@ -37,8 +36,7 @@ public class Filter_GaussianBlur extends ImageFilter {
 
     BufferedImage dest = new BufferedImage(img.getWidth(), img.getHeight(), img.getType());
 
-    //float [] scales = new float[radius];
-    // TODO fill scales[] with a gaussian curve
+    // scales could be filled with a gaussian curve: float[] scales = new float[radius];
     float[] scales = new float[3];
     scales[0] = 1.0f / 4.0f;
     scales[1] = 1.0f / 2.0f;

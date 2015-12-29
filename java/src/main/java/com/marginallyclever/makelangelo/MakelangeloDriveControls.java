@@ -41,8 +41,8 @@ public class MakelangeloDriveControls
   private JPanel dragAndDrive;
   private JLabel coordinates;
   
-  protected MultilingualSupport translator;
-  protected MakelangeloRobot machineConfiguration;
+  protected Translator translator;
+  protected MakelangeloRobotSettings machineConfiguration;
   protected Makelangelo gui;
 
   private boolean mouseInside,mouseOn;
@@ -70,7 +70,7 @@ public class MakelangeloDriveControls
 	  return b;
   }
 
-  public void createPanel(Makelangelo _gui, MultilingualSupport _translator, MakelangeloRobot _machineConfiguration) {
+  public void createPanel(Makelangelo _gui, Translator _translator, MakelangeloRobotSettings _machineConfiguration) {
     translator = _translator;
     gui = _gui;
     machineConfiguration = _machineConfiguration;
@@ -302,7 +302,7 @@ public class MakelangeloDriveControls
       if (feed_rate < 0.001) feed_rate = 0.001;
       machineConfiguration.setFeedRate(feed_rate);
       feedRate.setText(Double.toString(feed_rate));
-      gui.sendLineToRobot("G00 G21 F" + feed_rate);
+      gui.sendLineToRobot("G00 F" + feed_rate);
     } else if (b == disengageMotors) {
     	gui.sendLineToRobot("M18");
     } else {

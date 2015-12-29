@@ -2,10 +2,9 @@ package com.marginallyclever.filters;
 
 import java.awt.image.BufferedImage;
 
-import com.marginallyclever.basictypes.ImageFilter;
-import com.marginallyclever.makelangelo.MakelangeloRobot;
+import com.marginallyclever.makelangelo.MakelangeloRobotSettings;
 import com.marginallyclever.makelangelo.Makelangelo;
-import com.marginallyclever.makelangelo.MultilingualSupport;
+import com.marginallyclever.makelangelo.Translator;
 
 /**
  * Floyd/Steinberg dithering
@@ -17,8 +16,8 @@ public class Filter_DitherFloydSteinberg extends ImageFilter {
   private long tone;
 
 
-  public Filter_DitherFloydSteinberg(Makelangelo gui, MakelangeloRobot mc,
-                                     MultilingualSupport ms) {
+  public Filter_DitherFloydSteinberg(Makelangelo gui, MakelangeloRobotSettings mc,
+                                     Translator ms) {
     super(gui, mc, ms);
   }
 

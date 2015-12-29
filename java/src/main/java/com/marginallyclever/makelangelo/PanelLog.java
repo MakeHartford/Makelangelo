@@ -48,12 +48,12 @@ implements ActionListener, ChangeListener, KeyListener {
 	private JTextField commandLineText;
 	private JButton commandLineSend;
 
-	protected MultilingualSupport translator;
-	protected MakelangeloRobot machineConfiguration;
+	protected Translator translator;
+	protected MakelangeloRobotSettings machineConfiguration;
 	protected Makelangelo gui;
 
 
-	public void createPanel(Makelangelo _gui, MultilingualSupport _translator, MakelangeloRobot _machineConfiguration) {
+	public void createPanel(Makelangelo _gui, Translator _translator, MakelangeloRobotSettings _machineConfiguration) {
 		translator = _translator;
 		gui = _gui;
 		machineConfiguration = _machineConfiguration;
@@ -119,10 +119,7 @@ implements ActionListener, ChangeListener, KeyListener {
 	}
 
 	@Override
-	public void stateChanged(ChangeEvent e) {
-		// TODO Auto-generated method stub
-
-	}
+	public void stateChanged(ChangeEvent e) {}
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
@@ -132,13 +129,11 @@ implements ActionListener, ChangeListener, KeyListener {
 			gui.sendLineToRobot(commandLineText.getText());
 			commandLineText.setText("");
 		}
-
 	}
 
 
 	@Override
-	public void keyTyped(KeyEvent e) {
-	}
+	public void keyTyped(KeyEvent e) {}
 
 	/**
 	 * Handle the key-pressed event from the text field.
@@ -153,7 +148,7 @@ implements ActionListener, ChangeListener, KeyListener {
 	@Override
 	public void keyReleased(KeyEvent e) {
 		if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-			gui.processLine(commandLineText.getText());
+			gui.sendLineToRobot(commandLineText.getText());
 			commandLineText.setText("");
 		}
 	}

@@ -19,9 +19,8 @@ import javax.swing.JSeparator;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 
-import com.marginallyclever.makelangelo.Makelangelo;
 import com.marginallyclever.makelangelo.MakelangeloRobot;
-import com.marginallyclever.makelangelo.MultilingualSupport;
+import com.marginallyclever.makelangelo.Translator;
 
 public class PanelAdjustMachineSize
 extends JPanel
@@ -31,22 +30,22 @@ implements ActionListener, KeyListener {
 	 */
 	private static final long serialVersionUID = -84665452555208524L;
 	
-	protected Makelangelo gui;
-	protected MultilingualSupport translator;
-	protected MakelangeloRobot machineConfiguration;
+	protected Translator translator;
+	protected MakelangeloRobot robot;
 	
 	protected JComboBox<String> paperSizes;
 	protected JTextField mw, mh;
 	protected JTextField pw, ph;
-
-	protected JCheckBox reverse_h;
-	protected JTextField mBobbin1,mBobbin2;
+	
+	protected JTextField acceleration;
+	
+	protected JCheckBox flipForGlass;
+	protected JTextField pulleyDiameterLeft,pulleyDiameterRight;
    
 	
-	public PanelAdjustMachineSize(Makelangelo _gui, MultilingualSupport _translator, MakelangeloRobot _machineConfiguration) {
-		gui = _gui;
-		translator = _translator;
-		machineConfiguration = _machineConfiguration;
+	public PanelAdjustMachineSize(Translator translator, MakelangeloRobot robot) {
+		this.translator = translator;
+		this.robot = robot;
 
 	    this.setBorder(BorderFactory.createEmptyBorder(16,16,16,16));
 	    //this.setLayout(new GridLayout(0,1,8,8));
@@ -55,6 +54,8 @@ implements ActionListener, KeyListener {
 
 	    GridBagConstraints c = new GridBagConstraints();
 	    GridBagConstraints d = new GridBagConstraints();
+	    c.ipadx=5;
+	    c.ipady=0;
 
 	    int y = 0;
 	/*
@@ -99,10 +100,10 @@ implements ActionListener, KeyListener {
 	    c.anchor=GridBagConstraints.EAST;
 	    d.anchor=GridBagConstraints.WEST;
 
-	    double r = machineConfiguration.getLimitRight();
-	    double l = machineConfiguration.getLimitLeft(); 
+	    double r = robot.settings.getLimitRight();
+	    double l = robot.settings.getLimitLeft(); 
 	    double w = (r-l)*10;
-	    double h = (machineConfiguration.getLimitTop()-machineConfiguration.getLimitBottom())*10;
+	    double h = (robot.settings.getLimitTop()-robot.settings.getLimitBottom())*10;
 	    mw = new JTextField(String.valueOf(w));
 	    mh = new JTextField(String.valueOf(h));
 	    c.gridx=0;  c.gridy=y;  p.add(new JLabel(translator.get("MachineWidth")),c);
@@ -118,11 +119,11 @@ implements ActionListener, KeyListener {
 	    p = new JPanel(new GridBagLayout());
 	    this.add(p);
 	    y=0;
-	    paperSizes = new JComboBox<>(machineConfiguration.commonPaperSizes);
-	    paperSizes.setSelectedIndex(machineConfiguration.getCurrentPaperSizeChoice( machineConfiguration.getPaperWidth()*10, machineConfiguration.getPaperHeight()*10 ));
+	    paperSizes = new JComboBox<>(robot.settings.commonPaperSizes);
+	    paperSizes.setSelectedIndex(robot.settings.getCurrentPaperSizeChoice( robot.settings.getPaperWidth()*10, robot.settings.getPaperHeight()*10 ));
 	    
-	    pw = new JTextField(Double.toString(machineConfiguration.getPaperWidth()*10));
-	    ph = new JTextField(Double.toString(machineConfiguration.getPaperHeight()*10));
+	    pw = new JTextField(Double.toString(robot.settings.getPaperWidth()*10));
+	    ph = new JTextField(Double.toString(robot.settings.getPaperHeight()*10));
 	    
 	    c.gridx=0;  c.gridy=y;  p.add(new JLabel(translator.get("PaperSize")),c);
 	    d.gridx=1;  d.gridy=y;  d.gridwidth=2;  p.add(paperSizes,d);
@@ -153,37 +154,54 @@ implements ActionListener, KeyListener {
 	    this.add(p);
 	    
 	    c = new GridBagConstraints();
+	    c.ipadx=5;
+	    c.ipady=0;
 	    c.gridwidth=3;
 	    p.add(new JLabel(translator.get("AdjustPulleySize"),SwingConstants.CENTER),c);
 	    c.gridwidth=1;
  
-	    mBobbin1 = new JTextField(String.valueOf(machineConfiguration.getPulleyDiameterLeft() * 10));
-	    mBobbin2 = new JTextField(String.valueOf(machineConfiguration.getPulleyDiameterRight() * 10));
+	    pulleyDiameterLeft = new JTextField(String.valueOf(robot.settings.getPulleyDiameterLeft() * 10));
+	    pulleyDiameterRight = new JTextField(String.valueOf(robot.settings.getPulleyDiameterRight() * 10));
 	    y=2;
 	    c.weightx = 0;
 	    c.anchor=GridBagConstraints.EAST;
 	    d.anchor=GridBagConstraints.WEST;
 	    c.gridx = 0;    c.gridy = y;    p.add(new JLabel(translator.get("Left")), c);
-	    d.gridx = 1;    d.gridy = y;    p.add(mBobbin1, d);
+	    d.gridx = 1;    d.gridy = y;    p.add(pulleyDiameterLeft, d);
 	    d.gridx = 2;    d.gridy = y;    p.add(new JLabel(translator.get("Millimeters")), d);
 	    y++;
 	    c.gridx = 0;    c.gridy = y;    p.add(new JLabel(translator.get("Right")), c);
-	    d.gridx = 1;    d.gridy = y;    p.add(mBobbin2, d);
+	    d.gridx = 1;    d.gridy = y;    p.add(pulleyDiameterRight, d);
 	    d.gridx = 2;    d.gridy = y;    p.add(new JLabel(translator.get("Millimeters")), d);
 
-	    Dimension s = mBobbin1.getPreferredSize();
+	    Dimension s = pulleyDiameterLeft.getPreferredSize();
 	    s.width = 80;
-	    mBobbin1.setPreferredSize(s);
-	    mBobbin2.setPreferredSize(s);
+	    pulleyDiameterLeft.setPreferredSize(s);
+	    pulleyDiameterRight.setPreferredSize(s);
 
+	    this.add(new JSeparator());
+	    p = new JPanel(new GridBagLayout());
+	    this.add(p);
+
+	    acceleration = new JTextField(Double.toString(robot.settings.getAcceleration()));
+
+	    y=0;
+	    c.weightx = 0;
+	    c.anchor=GridBagConstraints.EAST;
+	    d.anchor=GridBagConstraints.WEST;
+	    c.gridx = 0;    c.gridy = y;    p.add(new JLabel(translator.get("AdjustAcceleration")), c);
+	    d.gridx = 1;    d.gridy = y;    p.add(acceleration, d);
+	    y++;
+	    
+	    
 	    this.add(new JSeparator());
 	    c.fill=GridBagConstraints.HORIZONTAL;
 	    c.anchor=GridBagConstraints.CENTER;
 	    c.gridx=0;
 	    c.gridy++;
-	    reverse_h = new JCheckBox(translator.get("FlipForGlass"));
-	    reverse_h.setSelected(machineConfiguration.isReverseForGlass());
-	    this.add(reverse_h,c);
+	    flipForGlass = new JCheckBox(translator.get("FlipForGlass"));
+	    flipForGlass.setSelected(robot.settings.isReverseForGlass());
+	    this.add(flipForGlass,c);
 
 	    s = ph.getPreferredSize();
 	    s.width = 80;
@@ -212,7 +230,7 @@ implements ActionListener, KeyListener {
     	} catch(Exception err) {
     		err.getMessage();
     	}
-    	paperSizes.setSelectedIndex(machineConfiguration.getCurrentPaperSizeChoice(w,h));	
+    	paperSizes.setSelectedIndex(robot.settings.getCurrentPaperSizeChoice(w,h));	
 	}
 
 	
@@ -232,29 +250,31 @@ implements ActionListener, KeyListener {
     }
      
     public void save() {
-          double pwf = Double.valueOf(pw.getText()) / 10.0;
-          double phf = Double.valueOf(ph.getText()) / 10.0;
-          double mwf = Double.valueOf(mw.getText()) / 10.0;
-          double mhf = Double.valueOf(mh.getText()) / 10.0;
-          boolean data_is_sane=true;
-          if( pwf<=0 ) data_is_sane=false;
-          if( phf<=0 ) data_is_sane=false;
-          if( mwf<=0 ) data_is_sane=false;
-          if( mhf<=0 ) data_is_sane=false;
+    	double pwf = Double.valueOf(pw.getText()) / 10.0;
+    	double phf = Double.valueOf(ph.getText()) / 10.0;
+    	double mwf = Double.valueOf(mw.getText()) / 10.0;
+    	double mhf = Double.valueOf(mh.getText()) / 10.0;
+    	boolean data_is_sane=true;
+    	if( pwf<=0 ) data_is_sane=false;
+    	if( phf<=0 ) data_is_sane=false;
+    	if( mwf<=0 ) data_is_sane=false;
+    	if( mhf<=0 ) data_is_sane=false;
 
-          double bld = Double.valueOf(mBobbin1.getText()) / 10.0;
-          double brd = Double.valueOf(mBobbin2.getText()) / 10.0;
+    	double bld = Double.valueOf(pulleyDiameterLeft.getText()) / 10.0;
+    	double brd = Double.valueOf(pulleyDiameterRight.getText()) / 10.0;
+    	double accel = Double.valueOf(acceleration.getText());
+    	
+    	if (bld <= 0) data_is_sane = false;
+    	if (brd <= 0) data_is_sane = false;
 
-          if (bld <= 0) data_is_sane = false;
-          if (brd <= 0) data_is_sane = false;
-
-        if (data_is_sane) {
-	    	machineConfiguration.setReverseForGlass(reverse_h.isSelected());
-	    	machineConfiguration.setPulleyDiameter(bld,brd);
-	    	machineConfiguration.setPaperSize(pwf,phf);
-	    	machineConfiguration.setMachineSize(mwf,mhf);
-        	machineConfiguration.saveConfig();
-        	gui.sendConfig();
-        }
-      }
+    	if (data_is_sane) {
+    		robot.settings.setReverseForGlass(flipForGlass.isSelected());
+    		robot.settings.setPulleyDiameter(bld,brd);
+    		robot.settings.setPaperSize(pwf,phf);
+    		robot.settings.setMachineSize(mwf,mhf);
+    		robot.settings.setAcceleration(accel);
+    		robot.settings.saveConfig();
+    		robot.sendConfig();
+    	}
+    }
 }

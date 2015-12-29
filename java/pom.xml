@@ -4,7 +4,7 @@
 
   <groupId>com.marginallyclever</groupId>
   <artifactId>Makelangelo</artifactId>
-  <version>v7.2.4-alpha-SNAPSHOT</version>
+  <version>v7.2.9-SNAPSHOT</version>
   <name>Makelangelo</name>
   <description>A mural drawing robot.
 
@@ -73,7 +73,7 @@ If you like this project, please support us by buying Marginally Clever products
             <exclude>**/*.properties</exclude>
           </excludes>
         </resource>
-      </resources>
+    </resources>
     <plugins>
       <plugin>
           <artifactId>maven-compiler-plugin</artifactId>
@@ -282,7 +282,7 @@ If you like this project, please support us by buying Marginally Clever products
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <minimum.maven.version>3</minimum.maven.version>
-    <minimum.java.version>1.7</minimum.java.version>
+    <minimum.java.version>1.8</minimum.java.version>
     <jogl.version>2.3.2</jogl.version>
     <maven-dependency-plugin.ignoreNonCompile>true</maven-dependency-plugin.ignoreNonCompile>
   </properties>

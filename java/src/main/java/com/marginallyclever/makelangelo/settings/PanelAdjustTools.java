@@ -2,20 +2,16 @@ package com.marginallyclever.makelangelo.settings;
 
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.util.ArrayList;
 
 import javax.swing.JButton;
 import javax.swing.JPanel;
 
 import com.marginallyclever.makelangelo.Makelangelo;
-import com.marginallyclever.makelangelo.MakelangeloRobot;
-import com.marginallyclever.makelangelo.MultilingualSupport;
+import com.marginallyclever.makelangelo.MakelangeloRobot;import com.marginallyclever.makelangelo.Translator;
 
 public class PanelAdjustTools
-extends JPanel
-implements ActionListener {
+extends JPanel {
 
 	/**
 	 * 
@@ -23,14 +19,14 @@ implements ActionListener {
 	private static final long serialVersionUID = 4061412413141577960L;
 
 	protected Makelangelo gui;
-	protected MultilingualSupport translator;
-	protected MakelangeloRobot machineConfiguration;
+	protected Translator translator;
+	protected MakelangeloRobot robot;
 	protected ArrayList<JButton> buttons = new ArrayList<JButton>();
 
-	public PanelAdjustTools(Makelangelo _gui, MultilingualSupport _translator, MakelangeloRobot _machineConfiguration) {
+	public PanelAdjustTools(Makelangelo _gui, Translator _translator, MakelangeloRobot robot) {
 		gui = _gui;
 		translator = _translator;
-		machineConfiguration = _machineConfiguration;
+		this.robot = robot;
 
 		this.setLayout(new GridBagLayout());
 		GridBagConstraints con1 = new GridBagConstraints();
@@ -43,26 +39,15 @@ implements ActionListener {
 		
 		buttons.clear();
 		
-    	String [] names = machineConfiguration.getToolNames();
+    	String [] names = robot.settings.getToolNames();
     	for(int i=0;i<names.length;++i) {
     		JButton b = new JButton(names[i]);
-    		b.addActionListener(this);
     		buttons.add(b);
     		this.add(b,con1);
     		con1.gridy++;
     	}
 	}
 	
-
-    public void actionPerformed(ActionEvent e) {
-    	Object subject = e.getSource();
-    	for(int i=0;i<buttons.size();++i) {
-    		if(subject == buttons.get(i)) {
-    			machineConfiguration.getTool(i).adjust();
-    			return;
-    		}
-    	}
-    }
     
     void save() {}
 }

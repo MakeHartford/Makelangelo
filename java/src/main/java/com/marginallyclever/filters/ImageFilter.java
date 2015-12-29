@@ -1,10 +1,11 @@
-package com.marginallyclever.basictypes;
+package com.marginallyclever.filters;
 
 import java.awt.image.BufferedImage;
 
+import com.marginallyclever.basictypes.ImageManipulator;
 import com.marginallyclever.makelangelo.Makelangelo;
-import com.marginallyclever.makelangelo.MakelangeloRobot;
-import com.marginallyclever.makelangelo.MultilingualSupport;
+import com.marginallyclever.makelangelo.MakelangeloRobotSettings;
+import com.marginallyclever.makelangelo.Translator;
 
 /**
  * Modifies a BufferedImage
@@ -12,8 +13,8 @@ import com.marginallyclever.makelangelo.MultilingualSupport;
  *
  */
 public abstract class ImageFilter extends ImageManipulator {
-	  public ImageFilter(Makelangelo gui, MakelangeloRobot mc,
-			MultilingualSupport ms) {
+	  public ImageFilter(Makelangelo gui, MakelangeloRobotSettings mc,
+			Translator ms) {
 		super(gui, mc, ms);
 	  }
 
