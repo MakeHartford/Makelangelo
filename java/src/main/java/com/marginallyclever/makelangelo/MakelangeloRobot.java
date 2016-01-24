@@ -7,9 +7,9 @@ import java.io.Reader;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
+import java.util.Arrays;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import javax.swing.JOptionPane;
 
 import com.marginallyclever.communications.MarginallyCleverConnection;
 import com.marginallyclever.communications.MarginallyCleverConnectionReadyListener;
@@ -35,12 +35,14 @@ public class MakelangeloRobot implements MarginallyCleverConnectionReadyListener
 	// Listeners which should be notified of a change to the percentage.
     private ArrayList<MakelangeloRobotListener> listeners = new ArrayList<MakelangeloRobotListener>();
 
-
-	private final Logger logger = LoggerFactory.getLogger(MakelangeloRobot.class);
 	// reading file
 	private boolean isRunning = false;
 	private boolean isPaused = true;
-
+	
+	// current pen state
+	private boolean penIsUp = false;
+	private boolean penIsUpBeforePause = false;
+	
 	
 	public MakelangeloRobot(Translator translator) {
 		settings = new MakelangeloRobotSettings(translator, this);
@@ -54,6 +56,11 @@ public class MakelangeloRobot implements MarginallyCleverConnectionReadyListener
 		if( this.connection != null ) {
 			this.connection.removeListener(this);
 		}
+		
+		if( this.connection != c ) {
+			portConfirmed = false;
+		}
+		
 		this.connection = c;
 		
 		if( this.connection != null ) {
@@ -61,6 +68,13 @@ public class MakelangeloRobot implements MarginallyCleverConnectionReadyListener
 		}
 	}
 
+	@Override
+	public void finalize() {
+		if( this.connection != null ) {
+			this.connection.removeListener(this);
+		}
+	}
+	
 	@Override
 	public void connectionReady(MarginallyCleverConnection arg0) {
 		notifyConnectionReady();
@@ -74,8 +88,12 @@ public class MakelangeloRobot implements MarginallyCleverConnectionReadyListener
 		if (data.lastIndexOf(hello) < 0) return;
 
 		portConfirmed = true;
+		// which machine is this?
 		String after_hello = data.substring(data.lastIndexOf(hello) + hello.length());
 		parseRobotUID(after_hello);
+		// send whatever config settings I have for this machine.
+		sendConfig();
+		// tell everyone I've confirmed connection.
 		notifyPortConfirmed();
 	}
 	
@@ -93,7 +111,7 @@ public class MakelangeloRobot implements MarginallyCleverConnectionReadyListener
 			try {
 				new_uid = Long.parseLong(lines[0]);
 			} catch (NumberFormatException e) {
-				logger.error("{}", e);
+				Log.error( e.getMessage() );
 			}
 		}
 
@@ -163,7 +181,7 @@ public class MakelangeloRobot implements MarginallyCleverConnectionReadyListener
 				newUID = Long.parseLong(line);
 			}
 		} catch (Exception e) {
-			logger.error("{}", e);
+			Log.error( e.getMessage() );
 			return 0;
 		}
 
@@ -218,13 +236,114 @@ public class MakelangeloRobot implements MarginallyCleverConnectionReadyListener
 
 	public void pause() {
 		isPaused = true;
+		// remember for later if the pen is down
+		penIsUpBeforePause = penIsUp;
+		// raise it if needed.
+		raisePen();
 	}
 
 	public void unPause() {
+		// if pen was down before pause, lower it
+		if (!penIsUpBeforePause) {
+			lowerPen();
+		}
+		
 		isPaused = false;
 	}
 	
 	public void setRunning(boolean running) {
 		isRunning = running;
+	}
+	
+	public void raisePen() {
+		sendLineToRobot("G00 Z" + settings.getPenUpString());
+	}
+	public void lowerPen() {
+		sendLineToRobot("G00 Z" + settings.getPenDownString());
+	}
+
+
+	/**
+	 * removes comments, processes commands drawbot shouldn't have to handle.
+	 *
+	 * @param line command to send
+	 */
+	public void tweakAndSendLine(String line,Translator translator) {
+		if (getConnection() == null || !isPortConfirmed() || !isRunning()) return;
+
+		// tool change request?
+		String[] tokens = line.split("(\\s|;)");
+
+		// tool change?
+		if (Arrays.asList(tokens).contains("M06") || Arrays.asList(tokens).contains("M6")) {
+			for (String token : tokens) {
+				if (token.startsWith("T")) {
+					changeToTool(token.substring(1),translator);
+				}
+			}
+		}
+
+		// send relevant part of line to the robot
+		sendLineToRobot(line);
+	}
+
+
+	private void changeToTool(String changeToolString,Translator translator) {
+		int i = Integer.decode(changeToolString);
+
+		String[] toolNames = settings.getToolNames();
+
+		if (i < 0 || i > toolNames.length) {
+			Log.error( Translator.get("InvalidTool") + i );
+			i = 0;
+		}
+		JOptionPane.showMessageDialog(null, Translator.get("ChangeToolPrefix") + toolNames[i] + Translator.get("ChangeToolPostfix"));
+	}
+
+
+	/**
+	 * Sends a single command the robot.  Could be anything.
+	 *
+	 * @param line command to send.
+	 * @return <code>true</code> if command was sent to the robot; <code>false</code> otherwise.
+	 */
+	public boolean sendLineToRobot(String line) {
+		if (getConnection() == null || !isPortConfirmed()) return false;
+
+		if (line.trim().equals("")) return false;
+		String reportedline = line;
+		// does it have a checksum?  hide it in the log
+		if (reportedline.contains(";")) {
+			String[] lines = line.split(";");
+			reportedline = lines[0];
+		}
+		if(reportedline.trim().equals("")) return false;
+
+		// catch pen up/down status here
+		if (line.contains("Z" + settings.getPenUpString())) {
+			penIsUp=true;
+		}
+		if (line.contains("Z" + settings.getPenDownString())) {
+			penIsUp=false;
+		}
+
+		Log.write("white", reportedline );
+		line += "\n";
+
+		// send unmodified line
+		try {
+			getConnection().sendMessage(line);
+		} catch (Exception e) {
+			Log.error( e.getMessage() );
+			return false;
+		}
+		return true;
+	}
+
+	public void setFeedRate(double parsedFeedRate) {
+		// remember it
+		settings.setFeedRate(parsedFeedRate);
+		// tell the robot
+		sendLineToRobot("G00 F" + parsedFeedRate);
 	}
 }

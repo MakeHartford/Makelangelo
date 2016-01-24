@@ -2,10 +2,6 @@ package com.marginallyclever.filters;
 
 import java.awt.image.BufferedImage;
 
-import com.marginallyclever.makelangelo.MakelangeloRobotSettings;
-import com.marginallyclever.makelangelo.Makelangelo;
-import com.marginallyclever.makelangelo.Translator;
-
 
 /**
  * Converts an image to N shades of grey.
@@ -16,9 +12,7 @@ public class Filter_BlackAndWhite extends ImageFilter {
   double levels = 2;
 
 
-  public Filter_BlackAndWhite(Makelangelo gui,
-                              MakelangeloRobotSettings mc, Translator ms, int _levels) {
-    super(gui, mc, ms);
+  public Filter_BlackAndWhite(int _levels) {
     levels = (double) _levels;
   }
 
@@ -60,7 +54,7 @@ public class Filter_BlackAndWhite extends ImageFilter {
         if (b > 255) b = 255;
         if (b < 0) b = 0;
         //if(b==255) System.out.println(x+"\t"+y+"\t"+i+"\t"+b);
-        img.setRGB(x, y, encode(b));
+        img.setRGB(x, y, ImageFilter.encode(b));
       }
     }
 
@@ -127,7 +121,7 @@ public class Filter_BlackAndWhite extends ImageFilter {
       for (x = 0; x < w; ++x) {
         pixel = decode(img.getRGB(x, y));
         b = (int) histogram[pixel];
-        img.setRGB(x, y, encode(b));
+        img.setRGB(x, y, ImageFilter.encode(b));
       }
     }
 

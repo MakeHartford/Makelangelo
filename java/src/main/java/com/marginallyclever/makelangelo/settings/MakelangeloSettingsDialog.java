@@ -1,6 +1,7 @@
 package com.marginallyclever.makelangelo.settings;
 
 import java.awt.Dimension;
+import java.awt.Frame;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Toolkit;
@@ -15,7 +16,6 @@ import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 
 import com.marginallyclever.drawingtools.DrawingTool;
-import com.marginallyclever.makelangelo.Makelangelo;
 import com.marginallyclever.makelangelo.MakelangeloRobot;
 import com.marginallyclever.makelangelo.Translator;
 
@@ -36,25 +36,21 @@ implements ActionListener {
 
   protected Translator translator;
   protected MakelangeloRobot robot;
-  protected Makelangelo gui;
 
   protected JTabbedPane panes;
   protected JButton save, cancel;
   
-  protected PanelAdjustMachineSize panelAdjustMachineSize;
-  protected PanelJogMotors panelJogMotors;
+  protected PanelAdjustMachine panelAdjustMachine;
+  protected PanelAdjustPaper panelAdjustPaper;
   protected DrawingTool panelAdjustPen;
-  //protected PanelAdjustTools panelAdjustTools;
-  //protected PanelSelectTool panelSelectTool;
   
   protected int dialogWidth = 450;
   protected int dialogHeight = 500;
   
-  public MakelangeloSettingsDialog(Makelangelo gui, Translator translator, MakelangeloRobot robot) {
-	super(gui.getParentFrame(),translator.get("configureMachine"),true);
+  public MakelangeloSettingsDialog(Frame parent, Translator translator, MakelangeloRobot robot) {
+	super(parent,Translator.get("configureMachine"),true);
 
 	this.translator = translator;
-	this.gui = gui;
 	this.robot = robot;
   }
 
@@ -63,22 +59,22 @@ implements ActionListener {
   public void run() {
     panes = new JTabbedPane();
     
-    panelAdjustMachineSize = new PanelAdjustMachineSize(translator,robot);
-    panelJogMotors = new PanelJogMotors(gui,translator,robot);
+    panelAdjustMachine = new PanelAdjustMachine(translator,robot);
+    panelAdjustPaper = new PanelAdjustPaper(translator,robot);
     panelAdjustPen = robot.settings.getTool(0);
-    //panelAdjustTools = new PanelAdjustTools(gui,translator,robot);
-    //panelSelectTool = new PanelSelectTool(gui,translator,robot);
+    //panelAdjustTools = new PanelAdjustTools(translator,robot);
+    //panelSelectTool = new PanelSelectTool(translator,robot);
     
-    panes.addTab(translator.get("MenuSettingsMachine"),panelAdjustMachineSize);
-    panes.addTab(translator.get("JogMotors"),panelJogMotors);
-    panes.addTab(translator.get("MenuAdjustTool"),panelAdjustPen.getPanel());
+    panes.addTab(Translator.get("MenuSettingsMachine"),panelAdjustMachine);
+    panes.addTab(Translator.get("MenuAdjustPaper"),panelAdjustPaper);
+    panes.addTab(Translator.get("MenuAdjustTool"),panelAdjustPen.getPanel());
     //panes.addTab(translator.get("MenuAdjustTool"),panelAdjustTools);
     //panes.addTab(translator.get("MenuSelectTool"),panelSelectTool);
     
 	this.setLayout(new GridBagLayout());
     GridBagConstraints d = new GridBagConstraints();
 
-    	// choice of machine configuration, save, save as, delete.
+    	// TODO: choice of machine configuration, save, save as, delete.
 
     	// the panes for the selected machine configuration
     	d.fill=GridBagConstraints.BOTH;
@@ -90,8 +86,8 @@ implements ActionListener {
     	this.add(panes,d);
 	
         // save and cancel buttons
-    	cancel = new JButton(translator.get("Cancel"));
-        save = new JButton(translator.get("Save"));
+    	cancel = new JButton(Translator.get("Cancel"));
+        save = new JButton(Translator.get("Save"));
 
 	    JPanel p = new JPanel(new GridBagLayout());
 	    GridBagConstraints c = new GridBagConstraints();
@@ -123,10 +119,11 @@ implements ActionListener {
 	  Object src = e.getSource();
 	  
 	  if(src == save) {
-		  panelAdjustMachineSize.save();
+		  panelAdjustMachine.save();
+		  panelAdjustPaper.save();
 		  panelAdjustPen.save();
-		  //panelAdjustTools.save();
-		  //panelSelectTool.save();
+		  robot.settings.saveConfig();
+		  robot.sendConfig();
 		  this.dispose();
 	  }
 	  if(src == cancel) {

@@ -17,8 +17,8 @@ import javax.swing.JTextField;
 import com.jogamp.opengl.GL2;
 import com.marginallyclever.basictypes.Point2D;
 import com.marginallyclever.makelangelo.DrawPanelDecorator;
+import com.marginallyclever.makelangelo.Log;
 import com.marginallyclever.makelangelo.MakelangeloRobotSettings;
-import com.marginallyclever.makelangelo.Makelangelo;
 import com.marginallyclever.makelangelo.Translator;
 import com.marginallyclever.voronoi.VoronoiCell;
 import com.marginallyclever.voronoi.VoronoiCellEdge;
@@ -54,13 +54,13 @@ public class Converter_VoronoiStippling extends ImageConverter implements DrawPa
 	private double[] yValuesIn = null;
 
 
-	public Converter_VoronoiStippling(Makelangelo gui, MakelangeloRobotSettings mc, Translator ms) {
-		super(gui, mc, ms);
+	public Converter_VoronoiStippling(MakelangeloRobotSettings mc) {
+		super(mc);
 	}
 
 	@Override
 	public String getName() {
-		return translator.get("voronoiStipplingName");
+		return Translator.get("voronoiStipplingName");
 	}
 
 	@Override
@@ -71,13 +71,13 @@ public class Converter_VoronoiStippling extends ImageConverter implements DrawPa
 		JTextField text_dot_min = new JTextField(Float.toString(MIN_DOT_SIZE), 8);
 
 		JPanel panel = new JPanel(new GridLayout(0, 1));
-		panel.add(new JLabel(translator.get("voronoiStipplingCellCount")));
+		panel.add(new JLabel(Translator.get("voronoiStipplingCellCount")));
 		panel.add(text_cells);
-		panel.add(new JLabel(translator.get("voronoiStipplingGenCount")));
+		panel.add(new JLabel(Translator.get("voronoiStipplingGenCount")));
 		panel.add(text_gens);
-		panel.add(new JLabel(translator.get("voronoiStipplingDotMax")));
+		panel.add(new JLabel(Translator.get("voronoiStipplingDotMax")));
 		panel.add(text_dot_max);
-		panel.add(new JLabel(translator.get("voronoiStipplingDotMin")));
+		panel.add(new JLabel(Translator.get("voronoiStipplingDotMin")));
 		panel.add(text_dot_min);
 
 
@@ -146,7 +146,7 @@ public class Converter_VoronoiStippling extends ImageConverter implements DrawPa
 
 	// set some starting points in a grid
 	protected void initializeCells(double minDistanceBetweenSites) {
-		mainGUI.log("<font color='green'>Initializing cells</font>\n");
+		Log.write("green","Initializing cells");
 
 		double totalArea = w * h;
 		double pointArea = totalArea / (double) MAX_CELLS;
@@ -200,12 +200,12 @@ public class Converter_VoronoiStippling extends ImageConverter implements DrawPa
 	 */
 	protected void evolveCells() {
 		try {
-			mainGUI.log("<font color='green'>Mutating</font>\n");
+			Log.write("green","Mutating");
 
 			int generation = 0;
 			do {
 				generation++;
-				mainGUI.log("<font color='green'>Generation " + generation + "</font>\n");
+				Log.write("green","Generation " + generation);
 
 				assert !lock.isHeldByCurrentThread();
 				lock.lock();
@@ -216,7 +216,7 @@ public class Converter_VoronoiStippling extends ImageConverter implements DrawPa
 				//}
 				adjustCentroids();
 
-				mainGUI.getDrawPanel().repaintNow();
+				if(drawPanel != null) drawPanel.repaintNow();
 
 				// Do again if things are still moving a lot.  Cap the # of times so we don't have an infinite loop.
 			} while (generation < MAX_GENERATIONS);
@@ -232,7 +232,7 @@ public class Converter_VoronoiStippling extends ImageConverter implements DrawPa
 	// write cell centroids to gcode.
 	protected void writeOutCells(Writer out) throws IOException {
 		if (graphEdges != null) {
-			mainGUI.log("<font color='green'>Writing gcode to " + dest + "</font>\n");
+			Log.write("green", "Writing gcode.");
 
 			imageStart(src_img, out);
 
@@ -241,7 +241,7 @@ public class Converter_VoronoiStippling extends ImageConverter implements DrawPa
 			tool.writeChangeTo(out);
 			liftPen(out);
 
-			float d = tool.getDiameter();
+			float toolDiameter = tool.getDiameter();
 
 			int i;
 
@@ -253,22 +253,25 @@ public class Converter_VoronoiStippling extends ImageConverter implements DrawPa
 				if (r < MIN_DOT_SIZE) continue;
 				r /= scale;
 
+				float lastX=0,lastY=0;
+				boolean first=true;
 				// filled circles
-				this.moveTo(out, x + (float) Math.cos(0) * r, y + (float) Math.cos(0) * r, true);
-				while (r > d) {
-					float detail = (float) (1.0 * Math.PI * r / d);
+				while (r > toolDiameter) {
+					float detail = (float)Math.ceil(Math.PI * r / toolDiameter);
 					if (detail < 4) detail = 4;
 					if (detail > 20) detail = 20;
-					for (float j = 1; j <= detail; ++j) {
-						this.moveTo(out,
-								x + r * (float) Math.cos((float) Math.PI * 2.0f * j / detail),
-								y + r * (float) Math.sin((float) Math.PI * 2.0f * j / detail), false);
+					for (float j = 0; j <= detail; ++j) {
+						lastX = x + r * (float) Math.cos((float) Math.PI * 2.0f * j / detail);
+						lastY = y + r * (float) Math.sin((float) Math.PI * 2.0f * j / detail);
+						this.moveTo(out, lastX, lastY, first);
+						first=false;
 					}
-					//r-=(d/(scale*1.5f));
-					r -= d;
+					r -= toolDiameter;
 				}
-				this.moveTo(out, x, y, false);
-				this.moveTo(out, x, y, true);
+				if(first == false) {
+					this.moveTo(out, x, y, false);
+					this.moveTo(out, x, y, true);
+				}
 			}
 
 			liftPen(out);

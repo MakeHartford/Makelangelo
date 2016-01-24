@@ -9,56 +9,38 @@ import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.io.IOException;
 
-import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.JTextPane;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultCaret;
 import javax.swing.text.html.HTMLDocument;
 import javax.swing.text.html.HTMLEditorKit;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-public class PanelLog
-extends JPanel
-implements ActionListener, ChangeListener, KeyListener {
-
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = 1L;
-
+@SuppressWarnings("serial")
+public class LogPanel extends JPanel implements LogListener, ActionListener, KeyListener {
+	Translator translator;
+	MakelangeloRobot robot;
+	
+	// logging
 	private JTextPane log;
 	private HTMLEditorKit kit;
 	private HTMLDocument doc;
-
-	/**
-	 * @see org.slf4j.Logger
-	 */
-	private final Logger logger = LoggerFactory.getLogger(Makelangelo.class);
 
 	// command line
 	private JPanel textInputArea;
 	private JTextField commandLineText;
 	private JButton commandLineSend;
-
-	protected Translator translator;
-	protected MakelangeloRobotSettings machineConfiguration;
-	protected Makelangelo gui;
-
-
-	public void createPanel(Makelangelo _gui, Translator _translator, MakelangeloRobotSettings _machineConfiguration) {
-		translator = _translator;
-		gui = _gui;
-		machineConfiguration = _machineConfiguration;
-
-		this.setBorder(BorderFactory.createEmptyBorder());
+	
+	
+	public LogPanel(Translator translator,MakelangeloRobot robot) {
+		this.translator = translator;
+		this.robot = robot;
+		
+		// log panel
+		Log.addListener(this);
 
 		// the log panel
 		log = new JTextPane();
@@ -68,19 +50,22 @@ implements ActionListener, ChangeListener, KeyListener {
 		doc = new HTMLDocument();
 		log.setEditorKit(kit);
 		log.setDocument(doc);
-		DefaultCaret c = (DefaultCaret) log.getCaret();
-		c.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
+		DefaultCaret caret = (DefaultCaret) log.getCaret();
+		caret.setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
+
+		JScrollPane logPane = new JScrollPane(log);
 
 		// Now put all the parts together
 		this.setLayout(new GridBagLayout());
 		GridBagConstraints con1 = new GridBagConstraints();
-		con1.gridx=0;
-		con1.gridy=0;
+		con1.gridx = 0;
+		con1.gridy = 0;
+		
 		con1.weightx=1;
 		con1.weighty=1;
 		con1.fill=GridBagConstraints.BOTH;
 		con1.anchor=GridBagConstraints.NORTHWEST;
-		this.add(new JScrollPane(log),con1);
+		this.add(logPane,con1);
 		con1.gridy++;
 
 
@@ -90,6 +75,12 @@ implements ActionListener, ChangeListener, KeyListener {
 		this.add(getTextInputField(),con1);
 	}
 
+
+	public void finalize() throws Throwable  {
+		super.finalize();
+		Log.removeListener(this);
+	}
+
 	private JPanel getTextInputField() {
 		textInputArea = new JPanel();
 		textInputArea.setLayout(new GridBagLayout());
@@ -97,7 +88,7 @@ implements ActionListener, ChangeListener, KeyListener {
 
 		commandLineText = new JTextField(0);
 		//commandLineText.setPreferredSize(new Dimension(10, 10));
-		commandLineSend = new JButton(translator.get("Send"));
+		commandLineSend = new JButton(Translator.get("Send"));
 		//commandLineSend.setHorizontalAlignment(SwingConstants.EAST);
 		c.gridwidth=4;
 		c.weightx=1;
@@ -117,21 +108,6 @@ implements ActionListener, ChangeListener, KeyListener {
 
 		return textInputArea;
 	}
-
-	@Override
-	public void stateChanged(ChangeEvent e) {}
-
-	@Override
-	public void actionPerformed(ActionEvent e) {
-		Object subject = e.getSource();
-
-		if (subject == commandLineSend) {
-			gui.sendLineToRobot(commandLineText.getText());
-			commandLineText.setText("");
-		}
-	}
-
-
 	@Override
 	public void keyTyped(KeyEvent e) {}
 
@@ -148,13 +124,14 @@ implements ActionListener, ChangeListener, KeyListener {
 	@Override
 	public void keyReleased(KeyEvent e) {
 		if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-			gui.sendLineToRobot(commandLineText.getText());
+			robot.sendLineToRobot(commandLineText.getText());
 			commandLineText.setText("");
 		}
 	}
 
 	// appends a message to the log tab and system out.
-	public void log(String msg) {
+	@Override
+	public void logEvent(String msg) {
 		// remove the
 		if (msg.indexOf(';') != -1) msg = msg.substring(0, msg.indexOf(';'));
 
@@ -166,7 +143,8 @@ implements ActionListener, ChangeListener, KeyListener {
 			doc.remove(0, over_length);
 			//logPane.getVerticalScrollBar().setValue(logPane.getVerticalScrollBar().getMaximum());
 		} catch (BadLocationException | IOException e) {
-			logger.error("{}", e);
+			// FIXME: failure here logs new error, causes infinite loop?
+			Log.error(e.getMessage());
 		}
 	}
 
@@ -179,4 +157,16 @@ implements ActionListener, ChangeListener, KeyListener {
 
 		}
 	}
+	
+	// The user has done something. respond to it.
+	public void actionPerformed(ActionEvent e) {
+		Object subject = e.getSource();
+		
+		// logging
+		if (subject == commandLineSend) {
+			robot.sendLineToRobot(commandLineText.getText());
+			commandLineText.setText("");
+		}
+	}
+
 }

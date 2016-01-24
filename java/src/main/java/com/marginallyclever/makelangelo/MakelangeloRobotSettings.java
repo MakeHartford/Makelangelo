@@ -7,9 +7,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.prefs.Preferences;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.marginallyclever.drawingtools.DrawingTool;
 import com.marginallyclever.drawingtools.DrawingTool_Pen;
 
@@ -24,10 +21,6 @@ public final class MakelangeloRobotSettings {
 	 */
 	private final Preferences topLevelMachinesPreferenceNode = PreferencesHelper.getPreferenceNode(PreferencesHelper.MakelangeloPreferenceKey.MACHINES);
 
-	/**
-	 * Each robot has a global unique identifier
-	 */
-	private long robotUID = 0;
 
 	public final static double INCH_TO_CM = 2.54;
 
@@ -42,37 +35,42 @@ public final class MakelangeloRobotSettings {
 			"A5 (148 x 210)",
 			"A6 (105 x 148)",
 			"A7 (74 x 105)",};
+	
+	
+	/**
+	 * Each robot has a global unique identifier
+	 */
+	private long robotUID = 0;
 
 	// machine physical limits
-	protected double limitTop;
-	protected double limitBottom;
-	protected double limitLeft;
-	protected double limitRight;
+	private double limitTop;
+	private double limitBottom;
+	private double limitLeft;
+	private double limitRight;
 
 	// paper area
-	protected double paperTop;
-	protected double paperBottom;
-	protected double paperLeft;
-	protected double paperRight;
-	protected double paperMargin;
+	private double paperTop;
+	private double paperBottom;
+	private double paperLeft;
+	private double paperRight;
+	private double paperMargin;
 
 	// pulleys turning backwards?
-	protected boolean invertMotor1;
-	protected boolean invertMotor2;
+	private boolean invertMotor1;
+	private boolean invertMotor2;
 
 	// pulley diameter
-	protected double pulleyDiameterLeft;
-	protected double pulleyDiameterRight;
+	private double pulleyDiameterLeft;
+	private double pulleyDiameterRight;
 	
 	// maximum speed
-	protected double maxFeedRate;
-	protected double maxAcceleration;
+	private double maxFeedRate;
+	private double maxAcceleration;
 	
-	protected boolean reverseForGlass;
-	protected boolean areMotorsBackwards;
+	private boolean reverseForGlass;
 	
-	protected boolean isRegistered = false;
-	protected boolean shouldSignName = false;
+	private boolean isRegistered = false;
+	private boolean shouldSignName = false;
 
 	/**
 	 * top left, bottom center, etc...
@@ -91,10 +89,9 @@ public final class MakelangeloRobotSettings {
 	 *   };}
 	 * </pre>
 	 */
-	protected int startingPositionIndex;
+	private int startingPositionIndex;
+	
 	// TODO leave the origin at the center of the paper and make a G92 (teleport) call when at the starting position
-	protected float startingPositionX;
-	protected float startingPositionY;
 
 	// TODO a way for users to create different tools for each machine
 	private List<DrawingTool> tools;
@@ -102,8 +99,6 @@ public final class MakelangeloRobotSettings {
 	private int currentToolIndex;
 
 	private String[] configsAvailable = null;
-
-	private final Logger logger = LoggerFactory.getLogger(MakelangeloRobotSettings.class);
 
 	private ArrayList<MakelangeloRobotSettingsListener> listeners = new ArrayList<MakelangeloRobotSettingsListener>();
 
@@ -119,7 +114,7 @@ public final class MakelangeloRobotSettings {
 	
 	public void notifySettingsChanged() {
 		for( MakelangeloRobotSettingsListener listener : listeners ) {
-			listener.settingsChanged(this);
+			listener.settingsChangedEvent(this);
 		}
 	}
 	
@@ -128,31 +123,37 @@ public final class MakelangeloRobotSettings {
 	/**
 	 * TODO move tool names into translations & add a color palette system for quantizing colors
 	 *
-	 * @param gui
 	 * @param translator
+	 * @param robot
 	 */
 	protected MakelangeloRobotSettings(Translator translator, MakelangeloRobot robot) {
-		limitTop = 18 * INCH_TO_CM;
-		limitBottom = -18 * INCH_TO_CM;
-		limitLeft = -18 * INCH_TO_CM;
-		limitRight = 18 * INCH_TO_CM;
+		double mh = 835 * 0.1; // mm > cm
+		double mw = 835 * 0.1; // mm > cm
+		
+		limitTop = mh/2;
+		limitBottom = -mh/2;
+		limitRight = mw/2;
+		limitLeft = -mw/2;
 
 		// paper area
-		paperTop = 12 * INCH_TO_CM;
-		paperBottom = -12 * INCH_TO_CM;
-		paperLeft = -9 * INCH_TO_CM;
-		paperRight = 9 * INCH_TO_CM;
+		double pw = 420 * 0.1; // mm to cm
+		double ph = 594 * 0.1; // mm to cm
+		
+		paperTop = ph/2;
+		paperBottom = -ph/2;
+		paperLeft = -pw/2;
+		paperRight = pw/2;
 		paperMargin = 0.9;
 
 		maxFeedRate     = 7500;
-		maxAcceleration = 100;
+		maxAcceleration = 20;
 		pulleyDiameterLeft  = 20.0 * 0.2 / Math.PI;  // 20 teeth on the pulley, 2mm per tooth.
 		pulleyDiameterRight = 20.0 * 0.2 / Math.PI;  // 20 teeth on the pulley, 2mm per tooth.
 
+		
 		invertMotor1       = false;
 		invertMotor2       = true;
 		reverseForGlass    = false;
-		areMotorsBackwards = false;
 
 		startingPositionIndex = 4;
 		
@@ -164,7 +165,7 @@ public final class MakelangeloRobotSettings {
 		try {
 			configsAvailable = topLevelMachinesPreferenceNode.childrenNames();
 		} catch (Exception e) {
-			logger.error("{}", e);
+			Log.error( e.getMessage() );
 			configsAvailable = new String[1];
 			configsAvailable[0] = "Default";
 		}
@@ -414,7 +415,7 @@ public final class MakelangeloRobotSettings {
 	}
 
 
-	public int getCurrentMachineIndex() {
+	public int getKnownMachineIndex() {
 		String [] list = getKnownMachineNames();
 		for (int i = 0; i < list.length; i++) {
 			if (list[i].equals("0")) continue;
@@ -423,7 +424,7 @@ public final class MakelangeloRobotSettings {
 			}
 		}
 
-		return 0;
+		return -1;
 	}
 
 
@@ -624,4 +625,21 @@ public final class MakelangeloRobotSettings {
 	public void setRegistered(boolean isRegistered) {
 		this.isRegistered = isRegistered;
 	}
+	
+	public double getPaperTop() {
+		return paperTop;
+	}
+
+	public double getPaperBottom() {
+		return paperBottom;
+	}
+
+	public double getPaperLeft() {
+		return paperLeft;
+	}
+
+	public double getPaperRight() {
+		return paperRight;
+	}
+
 }

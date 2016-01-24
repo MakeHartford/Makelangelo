@@ -14,7 +14,6 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 
 import com.marginallyclever.makelangelo.MakelangeloRobotSettings;
-import com.marginallyclever.makelangelo.Makelangelo;
 import com.marginallyclever.makelangelo.Translator;
 
 public class Generator_HilbertCurve extends ImageGenerator {
@@ -32,14 +31,13 @@ public class Generator_HilbertCurve extends ImageGenerator {
 	float x, y;
 
 
-	public Generator_HilbertCurve(Makelangelo gui, MakelangeloRobotSettings mc,
-			Translator ms) {
-		super(gui, mc, ms);
+	public Generator_HilbertCurve(MakelangeloRobotSettings mc) {
+		super(mc);
 	}
 
 	@Override
 	public String getName() {
-		return translator.get("HilbertCurveName");
+		return Translator.get("HilbertCurveName");
 	}
 
 	/**
@@ -61,7 +59,7 @@ public class Generator_HilbertCurve extends ImageGenerator {
 		final JTextField field_order = new JTextField(Integer.toString(order));
 
 		JPanel panel = new JPanel(new GridLayout(0, 1));
-		panel.add(new JLabel(translator.get("HilbertCurveOrder")));
+		panel.add(new JLabel(Translator.get("HilbertCurveOrder")));
 		panel.add(field_order);
 
 		int result = JOptionPane.showConfirmDialog(null, panel, getName(), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);

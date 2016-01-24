@@ -13,7 +13,7 @@ import com.marginallyclever.basictypes.ColorPalette;
 import com.marginallyclever.basictypes.Point2D;
 import com.marginallyclever.filters.Filter_GaussianBlur;
 import com.marginallyclever.makelangelo.MakelangeloRobotSettings;
-import com.marginallyclever.makelangelo.Makelangelo;
+import com.marginallyclever.makelangelo.Log;
 import com.marginallyclever.makelangelo.Translator;
 
 /**
@@ -28,9 +28,8 @@ public class Converter_ColorFloodFill extends ImageConverter {
 	private BufferedImage imgMask;
 
 
-	public Converter_ColorFloodFill(Makelangelo gui, MakelangeloRobotSettings mc,
-			Translator ms) {
-		super(gui, mc, ms);
+	public Converter_ColorFloodFill(MakelangeloRobotSettings mc) {
+		super(mc);
 
 		palette = new ColorPalette();
 		palette.addColor(new C3(0, 0, 0));
@@ -42,7 +41,7 @@ public class Converter_ColorFloodFill extends ImageConverter {
 
 	@Override
 	public String getName() {
-		return translator.get("RGBFloodFillName");
+		return Translator.get("RGBFloodFillName");
 	}
 
 
@@ -204,7 +203,7 @@ public class Converter_ColorFloodFill extends ImageConverter {
 		int x, y;
 		int z = 0;
 
-		mainGUI.log("<font color='orange'>Palette color " + palette.getColor(color_index).toString() + "</font>\n");
+		Log.write("orange", "Palette color " + palette.getColor(color_index).toString() );
 
 		for (y = 0; y < imageHeight; y += diameter) {
 			for (x = 0; x < imageWidth; x += diameter) {
@@ -231,7 +230,7 @@ public class Converter_ColorFloodFill extends ImageConverter {
 		// Make sure the pen is up for the first move
 		liftPen(osw);
 
-		mainGUI.log("<font color='green'>Color " + i + "</font>\n");
+		Log.write("green", "Color " + i );
 
 		scanForContiguousBlocks(i, osw);
 	}
@@ -246,7 +245,7 @@ public class Converter_ColorFloodFill extends ImageConverter {
 		//Filter_DitherFloydSteinbergRGB bw = new Filter_DitherFloydSteinbergRGB(mainGUI,machine,translator);
 		//img = bw.process(img);
 
-		Filter_GaussianBlur blur = new Filter_GaussianBlur(mainGUI, machine, translator, 1);
+		Filter_GaussianBlur blur = new Filter_GaussianBlur(1);
 		img = blur.filter(img);
 		//    Histogram h = new Histogram();
 		//    h.getHistogramOf(img);

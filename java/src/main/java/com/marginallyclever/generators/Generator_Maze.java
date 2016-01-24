@@ -17,7 +17,6 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 
 import com.marginallyclever.makelangelo.MakelangeloRobotSettings;
-import com.marginallyclever.makelangelo.Makelangelo;
 import com.marginallyclever.makelangelo.Translator;
 
 public class Generator_Maze extends ImageGenerator {
@@ -40,14 +39,13 @@ public class Generator_Maze extends ImageGenerator {
 	
 
 	
-	public Generator_Maze(Makelangelo gui, MakelangeloRobotSettings mc,
-			Translator ms) {
-		super(gui, mc, ms);
+	public Generator_Maze(MakelangeloRobotSettings mc) {
+		super(mc);
 	}
 
 	@Override
 	public String getName() {
-		return translator.get("MazeName");
+		return Translator.get("MazeName");
 	}
 
 	/**
@@ -71,9 +69,9 @@ public class Generator_Maze extends ImageGenerator {
 			final JTextField field_columns = new JTextField(Integer.toString(columns));
 
 			JPanel panel = new JPanel(new GridLayout(0, 1));
-			panel.add(new JLabel(translator.get("MazeRows")));
+			panel.add(new JLabel(Translator.get("MazeRows")));
 			panel.add(field_rows);
-			panel.add(new JLabel(translator.get("MazeColumns")));
+			panel.add(new JLabel(Translator.get("MazeColumns")));
 			panel.add(field_columns);
 
 			int result = JOptionPane.showConfirmDialog(null, panel, getName(), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);

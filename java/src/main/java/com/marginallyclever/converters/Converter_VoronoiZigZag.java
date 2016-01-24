@@ -19,8 +19,8 @@ import com.jogamp.opengl.GL2;
 import com.marginallyclever.basictypes.Point2D;
 import com.marginallyclever.filters.Filter_BlackAndWhite;
 import com.marginallyclever.makelangelo.DrawPanelDecorator;
+import com.marginallyclever.makelangelo.Log;
 import com.marginallyclever.makelangelo.MakelangeloRobotSettings;
-import com.marginallyclever.makelangelo.Makelangelo;
 import com.marginallyclever.makelangelo.Translator;
 import com.marginallyclever.voronoi.VoronoiCell;
 import com.marginallyclever.voronoi.VoronoiCellEdge;
@@ -63,13 +63,12 @@ public class Converter_VoronoiZigZag extends ImageConverter implements DrawPanel
 	private long time_limit=10*60*1000;  // 10 minutes
 
 
-	public Converter_VoronoiZigZag(Makelangelo gui,
-			MakelangeloRobotSettings mc, Translator ms) {
-		super(gui, mc, ms);
+	public Converter_VoronoiZigZag(MakelangeloRobotSettings mc) {
+		super(mc);
 	}
 
 	@Override
-	public String getName() { return translator.get("ZigZagName")+" 2"; }
+	public String getName() { return Translator.get("ZigZagName")+" 2"; }
 
 	@Override
 	public boolean convert(BufferedImage img,Writer out) throws IOException {
@@ -77,9 +76,9 @@ public class Converter_VoronoiZigZag extends ImageConverter implements DrawPanel
 		JTextField text_cells = new JTextField(Integer.toString(MAX_CELLS), 8);
 
 		JPanel panel = new JPanel(new GridLayout(0,1));
-		panel.add(new JLabel(translator.get("voronoiStipplingCellCount")));
+		panel.add(new JLabel(Translator.get("voronoiStipplingCellCount")));
 		panel.add(text_cells);
-		panel.add(new JLabel(translator.get("voronoiStipplingGenCount")));
+		panel.add(new JLabel(Translator.get("voronoiStipplingGenCount")));
 		panel.add(text_gens);
 
 
@@ -89,7 +88,7 @@ public class Converter_VoronoiZigZag extends ImageConverter implements DrawPanel
 			MAX_CELLS = Integer.parseInt(text_cells.getText());
 
 			// make black & white
-			Filter_BlackAndWhite bw = new Filter_BlackAndWhite(mainGUI,machine,translator,255);
+			Filter_BlackAndWhite bw = new Filter_BlackAndWhite(255);
 			img = bw.filter(img);
 
 			src_img = img;
@@ -136,6 +135,7 @@ public class Converter_VoronoiZigZag extends ImageConverter implements DrawPanel
 
 			for(i=0;i<cells.length;++i) {
 				VoronoiCell c = cells[i];
+				if(c==null) continue;
 				float v = 1.0f - (float)sample1x1(src_img,(int)c.centroid.x,(int)c.centroid.y) / 255.0f;
 				if(v*5 <= CUTOFF) {
 					gl2.glColor3f(0.8f,0.8f,0.8f);	 
@@ -165,7 +165,7 @@ public class Converter_VoronoiZigZag extends ImageConverter implements DrawPanel
 		int gen=0;
 		int once=1;
 
-		mainGUI.log("<font color='green'>Running Lin/Kerighan optimization...</font>\n");
+		Log.write("green","Running Lin/Kerighan optimization...");
 
 		old_len = getTourLength(solution);
 		updateProgress(old_len,2);
@@ -181,12 +181,12 @@ public class Converter_VoronoiZigZag extends ImageConverter implements DrawPanel
 			//once|=transposeBackwardTest();
 
 			once|=flipTests();
-			mainGUI.getDrawPanel().repaintNow();
+			if( drawPanel != null ) drawPanel.repaintNow();
 			gen++;
-			mainGUI.log("<font color='green'>Generation "+gen+"</font>\n");
+			Log.write("green","Generation "+gen);
 		}
 
-		mainGUI.log("<font color='green'>Finished @ "+gen+"</font>\n");
+		Log.write("green","Finished @ "+gen);
 	}
 
 
@@ -220,7 +220,7 @@ public class Converter_VoronoiZigZag extends ImageConverter implements DrawPanel
 				case  2: c="red";   break;
 				default: c="white";   break;
 				}
-				mainGUI.log("<font color='" + c + "'>" + formatTime(t_elapsed) + ": " + flen.format(len) + "mm</font>\n");
+				Log.write( c, formatTime(t_elapsed) + ": " + flen.format(len) + "mm");
 			}
 			progress = new_progress;
 			pm.setProgress((int)progress);
@@ -268,7 +268,7 @@ public class Converter_VoronoiZigZag extends ImageConverter implements DrawPanel
 				while(lock.isLocked());
 
 				lock.lock();  
-				//DrawbotGUI.getSingleton().Log("<font color='red'>flipping "+(finish-begin)+"</font>\n");
+				//DrawbotGUI.getSingleton().Log("<font color='red'>flipping "+(finish-begin));
 				for(j=0;j<half;++j) {
 					temp = solution[ti(begin+j)];
 					solution[ti(begin+j)]=solution[ti(finish-1-j)];
@@ -304,7 +304,7 @@ public class Converter_VoronoiZigZag extends ImageConverter implements DrawPanel
 	 * Starting with point 0, find the next nearest point and repeat until all points have been "found".
 	 */
 	private void greedyTour() {
-		mainGUI.log("<font color='green'>Finding greedy tour solution...</font>\n");
+		Log.write("green","Finding greedy tour solution...");
 
 		int i,j;
 		float w, bestw;
@@ -368,7 +368,7 @@ public class Converter_VoronoiZigZag extends ImageConverter implements DrawPanel
 
 	// set some starting points in a grid
 	protected void initializeCells(double minDistanceBetweenSites) {
-		mainGUI.log("<font color='green'>Initializing cells</font>\n");
+		Log.write("green","Initializing cells");
 
 		double totalArea = w*h;
 		double pointArea = totalArea/(double)MAX_CELLS;
@@ -427,24 +427,24 @@ public class Converter_VoronoiZigZag extends ImageConverter implements DrawPanel
 	 */
 	protected void evolveCells() {
 		try {
-			mainGUI.log("<font color='green'>Mutating</font>\n");
+			Log.write("green","Mutating");
 
 			int generation=0;
 			do {
 				generation++;
-				mainGUI.log("<font color='green'>Generation "+generation+"</font>\n");
+				Log.write("green","Generation "+generation);
 
 				lock.lock();
 				tessellateVoronoiDiagram();
 				lock.unlock();
 				adjustCentroids();
-
-				mainGUI.getDrawPanel().repaintNow();
+				
+				if( drawPanel != null ) drawPanel.repaintNow();
 
 				// Do again if things are still moving a lot.  Cap the # of times so we don't have an infinite loop.
 			} while(generation<MAX_GENERATIONS);
 
-			mainGUI.log("<font color='green'>Last "+generation+"</font>\n");
+			Log.write("green","Last "+generation);
 		}
 		catch(Exception e) {
 			e.printStackTrace();
@@ -455,7 +455,7 @@ public class Converter_VoronoiZigZag extends ImageConverter implements DrawPanel
 	// write cell centroids to gcode.
 	protected void writeOutCells(Writer out) throws IOException {
 		if(graphEdges != null ) {
-			mainGUI.log("<font color='green'>Writing gcode to "+dest+"</font>\n");
+			Log.write("green","Writing gcode.");
 			imageStart(src_img, out);
 
 			// set absolute coordinates

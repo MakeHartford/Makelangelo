@@ -14,7 +14,6 @@ import javax.swing.JTextField;
 
 import com.marginallyclever.filters.Filter_BlackAndWhite;
 import com.marginallyclever.makelangelo.MakelangeloRobotSettings;
-import com.marginallyclever.makelangelo.Makelangelo;
 import com.marginallyclever.makelangelo.Translator;
 
 
@@ -22,14 +21,13 @@ public class Converter_Pulse extends ImageConverter {
 	private float blockScale = 6.0f;
 	private int direction = 0;
 
-	public Converter_Pulse(Makelangelo gui, MakelangeloRobotSettings mc,
-			Translator ms) {
-		super(gui, mc, ms);
+	public Converter_Pulse(MakelangeloRobotSettings mc) {
+		super(mc);
 	}
 
 	@Override
 	public String getName() {
-		return translator.get("PulseLineName");
+		return Translator.get("PulseLineName");
 	}
 
 	/**
@@ -54,7 +52,7 @@ public class Converter_Pulse extends ImageConverter {
 		final JTextField field_size = new JTextField(Float.toString(blockScale));
 
 		JPanel panel = new JPanel(new GridLayout(0, 1));
-		panel.add(new JLabel(translator.get("HilbertCurveSize")));
+		panel.add(new JLabel(Translator.get("HilbertCurveSize")));
 		panel.add(field_size);
 
 		String[] directions = {"horizontal", "vertical"};
@@ -79,7 +77,7 @@ public class Converter_Pulse extends ImageConverter {
 	 * @throws IOException couldn't open output file
 	 */
 	private void convertNow(BufferedImage img,Writer out) throws IOException {
-		Filter_BlackAndWhite bw = new Filter_BlackAndWhite(mainGUI, machine, translator, 255);
+		Filter_BlackAndWhite bw = new Filter_BlackAndWhite(255);
 		img = bw.filter(img);
 
 		imageStart(img, out);
